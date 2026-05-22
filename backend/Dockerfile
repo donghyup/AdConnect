@@ -6,7 +6,7 @@ COPY . .
 RUN gradle build --no-daemon -x test
 
 # Package stage
-FROM openjdk:17-jdk-slim
+FROM eclipse-temurin:17-jre
 WORKDIR /app
 EXPOSE 8080
 COPY --from=build /app/build/libs/app.jar app.jar
