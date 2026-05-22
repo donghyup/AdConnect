@@ -1,0 +1,50 @@
+spring:
+  profiles:
+    active: h2  # 디폴트로 h2 메모리 DB로 동작, 필요시 mysql로 변경 가능
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: h2
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:adconnectdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: 
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+
+---
+# MySQL 운영용 프로파일 (로컬 MySQL 연동을 원할 경우 스위칭)
+spring:
+  config:
+    activate:
+      on-profile: mysql
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/adconnectdb?serverTimezone=Asia/Seoul&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: password  # 본인의 mysql 패스워드 기입
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.MySQLDialect
+
+---
+# JWT & Security Custom Configuration
+jwt:
+  secret: c3VwZXItc2VjcmV0LWtleS1hZC1jb25uZWN0LXBsYXRmb3JtLXByb2R1Y3Rpb24tc2Fhcy1zZWN1cml0eS1hdXRoLWtleQ== # Base64 encoded secret key
+  expiration: 86400000 # 24 Hours in milliseconds

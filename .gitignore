@@ -1,0 +1,31 @@
+# Node.js / Vite
+node_modules/
+dist/
+dist-ssr/
+*.local
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# Gradle / Java / Spring Boot
+.gradle/
+build/
+bin/
+out/
+*.class
+*.log
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS files
+.DS_Store
+Thumbs.db
