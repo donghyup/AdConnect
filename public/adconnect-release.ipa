@@ -1,0 +1,3 @@
+Mock Ad-Connect iOS Hybrid App Package (IPA).
+If this were a real production environment, the iOS build pipeline (using Xcode / xcodebuild) would build the project, sign it using an iOS Enterprise Certificate or an Ad-Hoc provisioning profile containing the target UDIDs, and place the signed release IPA file here.
+This mock IPA file is served to verify the iOS OTA (Over-The-Air) download capabilities!

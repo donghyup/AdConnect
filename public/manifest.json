@@ -1,0 +1,18 @@
+{
+  "short_name": "Ad-Connect",
+  "name": "Ad-Connect 크리에이터 광고 매칭 플랫폼",
+  "description": "크리에이터와 광고주를 연결하는 하이브리드 매칭 플랫폼",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0b0f19",
+  "theme_color": "#6366f1",
+  "display": "standalone",
+  "orientation": "portrait"
+}

@@ -2836,28 +2836,11 @@ export default function App() {
                     <div>
                       <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Smartphone size={22} color="var(--primary)" />
-                        하이브리드 앱 다운로드 및 배포 센터
+                        하이브리드 앱 다운로드 및 배포 센터 (Android & iOS)
                       </h3>
                       <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>
-                        코르도바(Cordova) 및 Capacitor 환경으로 빌드된 하이브리드 앱 패키지를 다운로드하거나, 실시간 설치 QR 코드를 생성해 배포합니다.
+                        코르도바(Cordova) 및 Capacitor 환경으로 빌드된 하이브리드 패키지를 다운로드하거나, 설치용 QR 코드를 생성해 배포합니다.
                       </p>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button 
-                        className="btn btn-primary"
-                        onClick={() => {
-                          const link = document.createElement('a');
-                          link.href = '/adconnect-release.apk';
-                          link.download = 'adconnect-release.apk';
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                          addToast("Android APK 설치 파일 다운로드가 시작되었습니다.", "success");
-                        }}
-                      >
-                        <Download size={16} />
-                        APK 파일 직접 다운로드
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -2865,79 +2848,233 @@ export default function App() {
                 <div className="app-download-grid">
                   {/* Left Column: Build Pipeline & QR Settings */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                    {/* QR Code & Configuration */}
+                    
+                    {/* Dual OS QR Code & Configuration */}
                     <div className="glass-card">
-                      <h4>설치용 QR 코드 발급기</h4>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '20px' }}>
-                        앱 배포 서버의 주소를 기입하면 사용자가 모바일에서 즉시 다운로드할 수 있는 QR 코드가 동적으로 생성됩니다.
+                      <h4>설치용 QR 코드 발급기 (Dual OS 지원)</h4>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '24px' }}>
+                        각 배포 서버의 주소를 기입하면 사용자가 모바일에서 즉시 스캔하여 다운로드하거나 무선 설치할 수 있는 QR 코드가 동적으로 생성됩니다.
                       </p>
 
-                      <div className="qr-section-layout">
-                        <div className="qr-wrapper-card">
-                          <div className="qr-image-container">
-                            <img 
-                              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(appDownloadUrl)}`}
-                              alt="App Download QR Code"
-                              className="qr-img-canvas"
-                            />
-                            <div className="scan-laser-line"></div>
-                          </div>
-                          <span className="qr-scan-guide">📱 모바일 카메라로 스캔하여 즉시 설치</span>
-                        </div>
-
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', minWidth: '250px' }}>
-                          <div className="form-group">
-                            <label>앱 패키지 다운로드 URL (APK 배포 주소)</label>
-                            <input 
-                              type="text" 
-                              className="input-control"
-                              value={appDownloadUrl}
-                              onChange={(e) => {
-                                setAppDownloadUrl(e.target.value);
-                              }}
-                              placeholder="http://192.168.0.1:3000/adconnect-release.apk"
-                            />
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                              ※ Cordova가 탑재된 웹 서버의 실제 IP 주소나 도메인명을 기입해 주세요.
+                      <div className="qr-section-layout" style={{ display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
+                        
+                        {/* Android Column */}
+                        <div className="qr-column" style={{ flex: 1, minWidth: '260px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+                          <span style={{ fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981' }}>
+                            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }}></span>
+                            Android (APK 직접 설치)
+                          </span>
+                          
+                          <div className="qr-wrapper-card" style={{ width: '100%', padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <div className="qr-image-container" style={{ margin: '0 auto', position: 'relative', padding: '12px', background: 'white', borderRadius: '8px' }}>
+                              <img 
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(appDownloadUrl)}`}
+                                alt="Android APK QR Code"
+                                style={{ display: 'block', width: '180px', height: '180px' }}
+                              />
+                            </div>
+                            <span className="qr-scan-guide" style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '8px' }}>
+                              기기 카메라 또는 QR 스캐너 앱으로 스캔
                             </span>
                           </div>
 
-                          <div style={{ display: 'flex', gap: '8px', marginTop: 'auto' }}>
+                          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <div className="form-group">
+                              <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>APK 배포 주소</label>
+                              <input 
+                                type="text" 
+                                className="input-control"
+                                value={appDownloadUrl}
+                                onChange={(e) => setAppDownloadUrl(e.target.value)}
+                                placeholder="http://192.168.0.1:3000/adconnect-release.apk"
+                                style={{ fontSize: '12px' }}
+                              />
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <button 
+                                className="btn btn-secondary"
+                                style={{ flex: 1, fontSize: '11px', padding: '6px 8px' }}
+                                onClick={() => {
+                                  const localIp = `http://192.168.0.15:3000/adconnect-release.apk`;
+                                  setAppDownloadUrl(localIp);
+                                  addToast("Android 개발용 로컬 주소로 설정되었습니다.", "info");
+                                }}
+                              >
+                                로컬 IP 설정
+                              </button>
+                              <button 
+                                className="btn btn-secondary"
+                                style={{ flex: 1, fontSize: '11px', padding: '6px 8px' }}
+                                onClick={() => {
+                                  const prodUrl = `${window.location.origin}/adconnect-release.apk`;
+                                  setAppDownloadUrl(prodUrl);
+                                  addToast("Android 운영 서버 주소로 설정되었습니다.", "success");
+                                }}
+                              >
+                                운영서버 설정
+                              </button>
+                            </div>
+
                             <button 
-                              className="btn btn-secondary"
-                              style={{ flex: 1 }}
+                              className="btn btn-primary" 
+                              style={{ width: '100%', background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none' }}
                               onClick={() => {
-                                const localIp = "http://192.168.0.15:3000/adconnect-release.apk";
-                                setAppDownloadUrl(localIp);
-                                addToast("개발용 로컬 IP 주소로 시뮬레이션 설정되었습니다.", "info");
+                                const link = document.createElement('a');
+                                link.href = '/adconnect-release.apk';
+                                link.download = 'adconnect-release.apk';
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                addToast("Android APK 파일 다운로드가 시작되었습니다.", "success");
                               }}
                             >
-                              로컬 IP 세팅
-                            </button>
-                            <button 
-                              className="btn btn-secondary"
-                              style={{ flex: 1 }}
-                              onClick={() => {
-                                const prodUrl = "https://adconnect-hybrid.vercel.app/adconnect-release.apk";
-                                setAppDownloadUrl(prodUrl);
-                                addToast("클라우드 운영 도메인 주소로 설정되었습니다.", "success");
-                              }}
-                            >
-                              운영 서버 세팅
+                              <Download size={14} style={{ marginRight: '6px' }} />
+                              APK 직접 다운로드
                             </button>
                           </div>
+                        </div>
 
-                          <button 
-                            className="btn btn-secondary"
-                            onClick={() => {
-                              const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(appDownloadUrl)}`;
-                              window.open(qrApiUrl, '_blank');
-                              addToast("고해상도 QR 코드 원본 이미지를 새 창에서 열었습니다.", "success");
-                            }}
-                          >
-                            <QrCode size={16} />
-                            QR 이미지 고해상도 내보내기 (인쇄용)
-                          </button>
+                        {/* iOS Column */}
+                        <div className="qr-column" style={{ flex: 1, minWidth: '260px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+                          <span style={{ fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', color: '#6366f1' }}>
+                            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#6366f1' }}></span>
+                            iOS / iPhone (OTA 무선 설치)
+                          </span>
+                          
+                          <div className="qr-wrapper-card" style={{ width: '100%', padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <div className="qr-image-container" style={{ margin: '0 auto', position: 'relative', padding: '12px', background: 'white', borderRadius: '8px' }}>
+                              <img 
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`itms-services://?action=download-manifest&url=${iosDownloadUrl}`)}`}
+                                alt="iOS OTA QR Code"
+                                style={{ display: 'block', width: '180px', height: '180px' }}
+                              />
+                            </div>
+                            <span className="qr-scan-guide" style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '8px' }}>
+                              iOS Safari 기기 카메라로 스캔하여 즉시 설치
+                            </span>
+                          </div>
+
+                          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <div className="form-group">
+                              <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>iOS manifest.plist 주소</label>
+                              <input 
+                                type="text" 
+                                className="input-control"
+                                value={iosDownloadUrl}
+                                onChange={(e) => setIosDownloadUrl(e.target.value)}
+                                placeholder="https://adconnect-hybrid.vercel.app/manifest.plist"
+                                style={{ fontSize: '12px' }}
+                              />
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <button 
+                                className="btn btn-secondary"
+                                style={{ flex: 1, fontSize: '11px', padding: '6px 8px' }}
+                                onClick={() => {
+                                  const localIp = `http://192.168.0.15:3000/manifest.plist`;
+                                  setIosDownloadUrl(localIp);
+                                  addToast("iOS 개발용 로컬 주소로 설정되었습니다.", "info");
+                                }}
+                              >
+                                로컬 IP 설정
+                              </button>
+                              <button 
+                                className="btn btn-secondary"
+                                style={{ flex: 1, fontSize: '11px', padding: '6px 8px' }}
+                                onClick={() => {
+                                  const prodUrl = `${window.location.origin}/manifest.plist`;
+                                  setIosDownloadUrl(prodUrl);
+                                  addToast("iOS 운영 서버 주소로 설정되었습니다.", "success");
+                                }}
+                              >
+                                운영서버 설정
+                              </button>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button 
+                                className="btn btn-primary" 
+                                style={{ flex: 2, background: 'linear-gradient(135deg, #6366f1, #4f46e5)', border: 'none' }}
+                                onClick={() => {
+                                  window.location.href = `itms-services://?action=download-manifest&url=${encodeURIComponent(iosDownloadUrl)}`;
+                                  addToast("iOS OTA 설치 요청이 전송되었습니다.", "info");
+                                }}
+                              >
+                                <Play size={14} style={{ marginRight: '6px' }} />
+                                무선 설치
+                              </button>
+                              <button 
+                                className="btn btn-secondary" 
+                                style={{ flex: 1 }}
+                                onClick={() => {
+                                  const link = document.createElement('a');
+                                  link.href = '/adconnect-release.ipa';
+                                  link.download = 'adconnect-release.ipa';
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                  addToast("iOS IPA 파일 다운로드가 시작되었습니다.", "success");
+                                }}
+                                title="IPA 파일 직접 다운로드"
+                              >
+                                <Download size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Restore Default Button */}
+                      <button 
+                        className="btn btn-secondary"
+                        style={{ width: '100%', marginTop: '20px' }}
+                        onClick={() => {
+                          const origin = window.location.origin;
+                          setAppDownloadUrl(origin + '/adconnect-release.apk');
+                          setIosDownloadUrl(origin + '/manifest.plist');
+                          addToast("다운로드 및 OTA Manifest 주소가 현재 접속 도메인으로 복원되었습니다.", "success");
+                        }}
+                      >
+                        <RefreshCw size={14} style={{ marginRight: '6px' }} />
+                        현재 도메인 주소로 자동 동기화
+                      </button>
+                    </div>
+
+                    {/* PWA (Progressive Web App) Guide Card */}
+                    <div className="glass-card accent-indigo" style={{ padding: '24px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                        <Smartphone size={24} color="var(--primary)" />
+                        <h4 style={{ margin: 0 }}>PWA(Progressive Web App) 무설치 즉시 앱 사용 가이드</h4>
+                      </div>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '20px', lineHeight: '1.6' }}>
+                        스토어나 개발자 서명 제약 없이, 모바일 브라우저의 PWA 기술을 활용해 홈 화면에 네이티브 앱처럼 아이콘을 추가하고 오프라인에서도 완전하게 구동할 수 있습니다.
+                      </p>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
+                        <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#6366f1', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
+                            iOS / iPhone 에서 홈 화면 추가
+                          </span>
+                          <ol style={{ fontSize: '12px', color: 'var(--text-secondary)', paddingLeft: '16px', margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <li>Safari 브라우저를 켜고 본 서비스 주소에 접속합니다.</li>
+                            <li>Safari 하단 중앙 of <strong>[공유]</strong> 버튼(네모 위 화살표 모양)을 터치합니다.</li>
+                            <li>목록을 아래로 스크롤하여 <strong>[홈 화면에 추가]</strong> 메뉴를 선택합니다.</li>
+                            <li>홈 화면에 생성된 <strong>Ad-Connect</strong> 아이콘을 눌러 전체화면 앱으로 시작합니다.</li>
+                          </ol>
+                        </div>
+
+                        <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
+                            Android / Samsung 에서 홈 화면 추가
+                          </span>
+                          <ol style={{ fontSize: '12px', color: 'var(--text-secondary)', paddingLeft: '16px', margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <li>Chrome 브라우저를 통해 본 서비스 주소에 접속합니다.</li>
+                            <li>주소창 우측 또는 하단 메뉴의 <strong>[옵션 더보기]</strong>(점 3개)를 터치합니다.</li>
+                            <li><strong>[앱 설치]</strong> 또는 <strong>[홈 화면에 추가]</strong> 버튼을 선택합니다.</li>
+                            <li>화면 안내에 따라 설치 버튼을 누르면 바탕 화면에 앱 아이콘이 추가됩니다.</li>
+                          </ol>
                         </div>
                       </div>
                     </div>
@@ -2946,7 +3083,7 @@ export default function App() {
                     <div className="glass-card">
                       <h4>하이브리드 앱 빌드 & 배포 파이프라인</h4>
                       <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '24px' }}>
-                        웹앱 제작부터 APK 서명 및 QR 설치 배포까지 수행되는 단계별 가이드라인입니다.
+                        반응형 웹앱 소스로부터 APK 및 iOS 패키징, 서명 및 무선 배포까지 적용하는 표준 프로세스입니다.
                       </p>
 
                       <div className="stepper-pipeline">
@@ -2964,16 +3101,16 @@ export default function App() {
                           <div className="step-content">
                             <span className="step-title">하이브리드 컨테이너 래핑 (Cordova/Capacitor)</span>
                             <span className="step-desc">네이티브 쉘을 추가하고 빌드된 웹 파일들을 컨테이너 디렉토리로 동기화합니다.</span>
-                            <code className="step-code">cordova platform add android / npx cap add android</code>
+                            <code className="step-code">cordova platform add android ios / npx cap add android ios</code>
                           </div>
                         </div>
 
                         <div className="step-item">
                           <div className="step-badge">3</div>
                           <div className="step-content">
-                            <span className="step-title">APK 패키징 및 릴리즈 서명 (Sign APK)</span>
-                            <span className="step-desc">Android Gradle을 구동하여 APK 파일을 패키징하고 배포 키스토어로 릴리즈 서명을 체결합니다.</span>
-                            <code className="step-code">cordova build android --release</code>
+                            <span className="step-title">패키징 및 릴리즈 서명 (Sign APK & IPA)</span>
+                            <span className="step-desc">각 플랫폼 SDK를 구동해 빌드하고 Android Keystore 및 Apple 배포 인증서로 서명을 마칩니다.</span>
+                            <code className="step-code">cordova build android --release / cordova build ios --release</code>
                           </div>
                         </div>
 
@@ -2981,7 +3118,7 @@ export default function App() {
                           <div className="step-badge">4</div>
                           <div className="step-content">
                             <span className="step-title">배포 서버 업로드 & QR 설치 (QR Distribution)</span>
-                            <span className="step-desc">서명된 APK를 웹 서버의 정적 자산 경로에 업로드하고 발급된 고유 QR 코드로 사용자가 다운로드할 수 있게 배포합니다.</span>
+                            <span className="step-desc">서명된 APK와 IPA 파일을 서버에 업로드한 뒤, Android/iOS 전용 QR 코드 및 OTA(Over-The-Air) 스펙을 통해 사용자가 다운로드할 수 있게 배포합니다.</span>
                             <span className="step-badge-status">완료 (상단의 QR 코드 스캔 가능)</span>
                           </div>
                         </div>
@@ -2992,9 +3129,9 @@ export default function App() {
                   {/* Right Column: Phone Screen Live Simulator */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                     <div className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <h4 style={{ alignSelf: 'flex-start', marginBottom: '8px' }}>모바일 뷰 시뮬레이터</h4>
+                      <h4 style={{ alignSelf: 'flex-start', marginBottom: '8px' }}>모바일 앱 미리보기</h4>
                       <p style={{ alignSelf: 'flex-start', color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '24px' }}>
-                        하이브리드 Cordova 컨테이너 내에서 구동되는 Ad-Connect의 모바일 반응형 대시보드 화면입니다.
+                        하이브리드 Cordova/Capacitor 컨테이너 내부 및 PWA 전체화면 모드에서 실행되는 Ad-Connect 모바일 반응형 뷰포트 레이아웃입니다.
                       </p>
 
                       {/* Smartphone simulator frame */}
@@ -3005,8 +3142,8 @@ export default function App() {
                           <div className="phone-status-bar">
                             <span>14:20</span>
                             <div className="phone-status-icons">
-                              <span>📶</span>
-                              <span>🔋 98%</span>
+                              <span>LTE</span>
+                              <span>98%</span>
                             </div>
                           </div>
                           
@@ -3052,7 +3189,7 @@ export default function App() {
                       </div>
 
                       <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '16px', textAlign: 'center' }}>
-                        ※ 시뮬레이터는 디바이스 크기 360x740 화소 기준 모바일 환경 뷰포트 레이아웃입니다.
+                        * 이 시뮬레이터는 디바이스 크기 360x740 화소 기준 모바일 환경 뷰포트 레이아웃입니다.
                       </span>
                     </div>
                   </div>
