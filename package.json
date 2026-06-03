@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "vite",
-    "dev:backend": "cd backend && gradle bootRun",
+    "dev:backend": "cd backend && gradlew bootRun",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:backend\"",
     "build": "vite build",
     "preview": "vite preview"

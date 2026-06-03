@@ -31,7 +31,11 @@ import {
   ExternalLink,
   Lock,
   Mail,
-  RefreshCw
+  RefreshCw,
+  Smartphone,
+  QrCode,
+  Download,
+  Laptop
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -227,6 +231,9 @@ export default function App() {
 
   // Theme state
   const [theme, setTheme] = useState('dark');
+
+  // Hybrid App download URL state (points to public/adconnect-release.apk)
+  const [appDownloadUrl, setAppDownloadUrl] = useState(window.location.origin + '/adconnect-release.apk');
 
   // Backend Connection States
   const [isBackendConnected, setIsBackendConnected] = useState(false);
@@ -1402,6 +1409,14 @@ export default function App() {
                   운영 어드민 센터
                 </div>
               )}
+
+              <div 
+                className={`menu-item ${currentView === 'appDownload' ? 'active' : ''}`}
+                onClick={() => { setCurrentView('appDownload'); setShowNotificationPanel(false); setMobileMenuOpen(false); }}
+              >
+                <Smartphone size={18} />
+                하이브리드 앱 다운로드
+              </div>
 
               <div 
                 className={`menu-item ${currentView === 'mypage' ? 'active' : ''}`}
@@ -2807,6 +2822,238 @@ export default function App() {
                           </div>
                         </div>
                       )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* MODULE 8: HYBRID APP DOWNLOAD CENTER */}
+            {currentView === 'appDownload' && (
+              <div className="app-download-container" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                <div className="glass-card accent-indigo">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+                    <div>
+                      <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Smartphone size={22} color="var(--primary)" />
+                        하이브리드 앱 다운로드 및 배포 센터
+                      </h3>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>
+                        코르도바(Cordova) 및 Capacitor 환경으로 빌드된 하이브리드 앱 패키지를 다운로드하거나, 실시간 설치 QR 코드를 생성해 배포합니다.
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button 
+                        className="btn btn-primary"
+                        onClick={() => {
+                          const link = document.createElement('a');
+                          link.href = '/adconnect-release.apk';
+                          link.download = 'adconnect-release.apk';
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                          addToast("Android APK 설치 파일 다운로드가 시작되었습니다.", "success");
+                        }}
+                      >
+                        <Download size={16} />
+                        APK 파일 직접 다운로드
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="app-download-grid">
+                  {/* Left Column: Build Pipeline & QR Settings */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                    {/* QR Code & Configuration */}
+                    <div className="glass-card">
+                      <h4>설치용 QR 코드 발급기</h4>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '20px' }}>
+                        앱 배포 서버의 주소를 기입하면 사용자가 모바일에서 즉시 다운로드할 수 있는 QR 코드가 동적으로 생성됩니다.
+                      </p>
+
+                      <div className="qr-section-layout">
+                        <div className="qr-wrapper-card">
+                          <div className="qr-image-container">
+                            <img 
+                              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(appDownloadUrl)}`}
+                              alt="App Download QR Code"
+                              className="qr-img-canvas"
+                            />
+                            <div className="scan-laser-line"></div>
+                          </div>
+                          <span className="qr-scan-guide">📱 모바일 카메라로 스캔하여 즉시 설치</span>
+                        </div>
+
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', minWidth: '250px' }}>
+                          <div className="form-group">
+                            <label>앱 패키지 다운로드 URL (APK 배포 주소)</label>
+                            <input 
+                              type="text" 
+                              className="input-control"
+                              value={appDownloadUrl}
+                              onChange={(e) => {
+                                setAppDownloadUrl(e.target.value);
+                              }}
+                              placeholder="http://192.168.0.1:3000/adconnect-release.apk"
+                            />
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                              ※ Cordova가 탑재된 웹 서버의 실제 IP 주소나 도메인명을 기입해 주세요.
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '8px', marginTop: 'auto' }}>
+                            <button 
+                              className="btn btn-secondary"
+                              style={{ flex: 1 }}
+                              onClick={() => {
+                                const localIp = "http://192.168.0.15:3000/adconnect-release.apk";
+                                setAppDownloadUrl(localIp);
+                                addToast("개발용 로컬 IP 주소로 시뮬레이션 설정되었습니다.", "info");
+                              }}
+                            >
+                              로컬 IP 세팅
+                            </button>
+                            <button 
+                              className="btn btn-secondary"
+                              style={{ flex: 1 }}
+                              onClick={() => {
+                                const prodUrl = "https://adconnect-hybrid.vercel.app/adconnect-release.apk";
+                                setAppDownloadUrl(prodUrl);
+                                addToast("클라우드 운영 도메인 주소로 설정되었습니다.", "success");
+                              }}
+                            >
+                              운영 서버 세팅
+                            </button>
+                          </div>
+
+                          <button 
+                            className="btn btn-secondary"
+                            onClick={() => {
+                              const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(appDownloadUrl)}`;
+                              window.open(qrApiUrl, '_blank');
+                              addToast("고해상도 QR 코드 원본 이미지를 새 창에서 열었습니다.", "success");
+                            }}
+                          >
+                            <QrCode size={16} />
+                            QR 이미지 고해상도 내보내기 (인쇄용)
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stepper Pipeline Description */}
+                    <div className="glass-card">
+                      <h4>하이브리드 앱 빌드 & 배포 파이프라인</h4>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '24px' }}>
+                        웹앱 제작부터 APK 서명 및 QR 설치 배포까지 수행되는 단계별 가이드라인입니다.
+                      </p>
+
+                      <div className="stepper-pipeline">
+                        <div className="step-item">
+                          <div className="step-badge">1</div>
+                          <div className="step-content">
+                            <span className="step-title">반응형 웹앱 빌드 (Build Frontend)</span>
+                            <span className="step-desc">Vite와 React 환경에서 웹 최적화 자산을 빌드합니다.</span>
+                            <code className="step-code">npm run build</code>
+                          </div>
+                        </div>
+
+                        <div className="step-item">
+                          <div className="step-badge">2</div>
+                          <div className="step-content">
+                            <span className="step-title">하이브리드 컨테이너 래핑 (Cordova/Capacitor)</span>
+                            <span className="step-desc">네이티브 쉘을 추가하고 빌드된 웹 파일들을 컨테이너 디렉토리로 동기화합니다.</span>
+                            <code className="step-code">cordova platform add android / npx cap add android</code>
+                          </div>
+                        </div>
+
+                        <div className="step-item">
+                          <div className="step-badge">3</div>
+                          <div className="step-content">
+                            <span className="step-title">APK 패키징 및 릴리즈 서명 (Sign APK)</span>
+                            <span className="step-desc">Android Gradle을 구동하여 APK 파일을 패키징하고 배포 키스토어로 릴리즈 서명을 체결합니다.</span>
+                            <code className="step-code">cordova build android --release</code>
+                          </div>
+                        </div>
+
+                        <div className="step-item">
+                          <div className="step-badge">4</div>
+                          <div className="step-content">
+                            <span className="step-title">배포 서버 업로드 & QR 설치 (QR Distribution)</span>
+                            <span className="step-desc">서명된 APK를 웹 서버의 정적 자산 경로에 업로드하고 발급된 고유 QR 코드로 사용자가 다운로드할 수 있게 배포합니다.</span>
+                            <span className="step-badge-status">완료 (상단의 QR 코드 스캔 가능)</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Phone Screen Live Simulator */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                    <div className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <h4 style={{ alignSelf: 'flex-start', marginBottom: '8px' }}>모바일 뷰 시뮬레이터</h4>
+                      <p style={{ alignSelf: 'flex-start', color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '24px' }}>
+                        하이브리드 Cordova 컨테이너 내에서 구동되는 Ad-Connect의 모바일 반응형 대시보드 화면입니다.
+                      </p>
+
+                      {/* Smartphone simulator frame */}
+                      <div className="phone-simulator-frame">
+                        <div className="phone-earpiece"></div>
+                        <div className="phone-camera"></div>
+                        <div className="phone-screen-container">
+                          <div className="phone-status-bar">
+                            <span>14:20</span>
+                            <div className="phone-status-icons">
+                              <span>📶</span>
+                              <span>🔋 98%</span>
+                            </div>
+                          </div>
+                          
+                          {/* Mini Responsive App Content */}
+                          <div className="phone-mock-app">
+                            <div className="mock-app-header">
+                              <span style={{ fontSize: '11px', fontWeight: 'bold' }}>AD-CONNECT MOBILE</span>
+                              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--secondary)' }}></div>
+                            </div>
+                            
+                            <div className="mock-app-body">
+                              <div className="mock-widget">
+                                <span className="mock-widget-title">누적 도달수</span>
+                                <span className="mock-widget-val">185,000회</span>
+                              </div>
+
+                              <div className="mock-widget">
+                                <span className="mock-widget-title">평균 클릭률 (CTR)</span>
+                                <span className="mock-widget-val" style={{ color: 'var(--secondary)' }}>5.20%</span>
+                              </div>
+
+                              <div className="mock-widget">
+                                <span className="mock-widget-title">매칭 진행 캠페인</span>
+                                <span className="mock-widget-val" style={{ color: 'var(--primary)' }}>3건</span>
+                              </div>
+
+                              {/* Mini Chart Mockup */}
+                              <div className="mock-chart-container">
+                                <span className="mock-widget-title" style={{ marginBottom: '6px', display: 'block' }}>최근 트래픽 추이</span>
+                                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '40px', paddingTop: '10px' }}>
+                                  <div style={{ width: '12%', height: '30%', background: 'var(--primary)', borderRadius: '2px' }}></div>
+                                  <div style={{ width: '12%', height: '50%', background: 'var(--primary)', borderRadius: '2px' }}></div>
+                                  <div style={{ width: '12%', height: '45%', background: 'var(--primary)', borderRadius: '2px' }}></div>
+                                  <div style={{ width: '12%', height: '70%', background: 'var(--primary)', borderRadius: '2px' }}></div>
+                                  <div style={{ width: '12%', height: '60%', background: 'var(--primary)', borderRadius: '2px' }}></div>
+                                  <div style={{ width: '12%', height: '90%', background: 'var(--secondary)', borderRadius: '2px' }}></div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="phone-home-bar"></div>
+                      </div>
+
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '16px', textAlign: 'center' }}>
+                        ※ 시뮬레이터는 디바이스 크기 360x740 화소 기준 모바일 환경 뷰포트 레이아웃입니다.
+                      </span>
                     </div>
                   </div>
                 </div>

@@ -1,0 +1,3 @@
+Mock Ad-Connect Android Hybrid App Cordova Package.
+If this were a real production environment, the Cordova/Capacitor build pipeline would build the project, sign it (using release keystore and apksigner), and place the signed release APK here.
+This mock APK file is successfully served to verify the user downloading capabilities!
