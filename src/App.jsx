@@ -234,7 +234,7 @@ export default function App() {
 
   // Hybrid App download URL state (points to public/adconnect-release.apk)
   const [appDownloadUrl, setAppDownloadUrl] = useState(window.location.origin + '/adconnect-release.apk');
-  const [iosDownloadUrl, setIosDownloadUrl] = useState(window.location.origin + '/manifest.plist');
+  const [iosDownloadUrl, setIosDownloadUrl] = useState(window.location.origin + '/api/manifest');
 
   // Backend Connection States
   const [isBackendConnected, setIsBackendConnected] = useState(false);
@@ -3034,7 +3034,7 @@ export default function App() {
                         onClick={() => {
                           const origin = window.location.origin;
                           setAppDownloadUrl(origin + '/adconnect-release.apk');
-                          setIosDownloadUrl(origin + '/manifest.plist');
+                          setIosDownloadUrl(origin + '/api/manifest');
                           addToast("다운로드 및 OTA Manifest 주소가 현재 접속 도메인으로 복원되었습니다.", "success");
                         }}
                       >
