@@ -234,6 +234,7 @@ export default function App() {
 
   // Hybrid App download URL state (points to public/adconnect-release.apk)
   const [appDownloadUrl, setAppDownloadUrl] = useState(window.location.origin + '/adconnect-release.apk');
+  const [iosDownloadUrl, setIosDownloadUrl] = useState(window.location.origin + '/manifest.plist');
 
   // Backend Connection States
   const [isBackendConnected, setIsBackendConnected] = useState(false);
