@@ -35,6 +35,7 @@
   --transition-fast: all 0.15s ease;
   
   --sidebar-width: 260px;
+  --bg-input: rgba(0, 0, 0, 0.25);
 }
 
 [data-theme="light"] {
@@ -60,7 +61,8 @@
   --text-muted: #94a3b8;
   
   --shadow-glow: 0 8px 32px 0 rgba(31, 38, 135, 0.06);
-}
+
+  --bg-input: rgba(255, 255, 255, 0.9);}
 
 /* ==========================================================================
    Base Styles & Reset
@@ -516,7 +518,7 @@ button, input, select, textarea {
 .input-control {
   width: 100%;
   padding: 12px 16px;
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--bg-input);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   color: var(--text-primary);
