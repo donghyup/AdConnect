@@ -1753,7 +1753,7 @@ export default function App() {
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: '32px' }}>
-                  <div className="glass-card">
+                  <div className="glass-card" style={{ minWidth: 0 }}>
                     <h3 style={{ marginBottom: '20px' }}>캠페인 실시간 성과 추이 (조회수 및 CTR 상관관계)</h3>
                     <div style={{ width: '100%', height: 320 }}>
                       <ResponsiveContainer>
@@ -1771,7 +1771,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="glass-card">
+                  <div className="glass-card" style={{ minWidth: 0 }}>
                     <h3 style={{ marginBottom: '20px' }}>광고주별 예산 대비 광고 매출 성과 (ROI / Return On Investment)</h3>
                     <div style={{ width: '100%', height: 320 }}>
                       <ResponsiveContainer>

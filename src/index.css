@@ -36,6 +36,9 @@
   
   --sidebar-width: 260px;
   --bg-input: rgba(0, 0, 0, 0.25);
+  --bg-table-header: rgba(0, 0, 0, 0.25);
+  --bg-table-hover: rgba(255, 255, 255, 0.02);
+  --bg-chat-received: rgba(255, 255, 255, 0.05);
 }
 
 [data-theme="light"] {
@@ -62,7 +65,13 @@
   
   --shadow-glow: 0 8px 32px 0 rgba(31, 38, 135, 0.06);
 
-  --bg-input: rgba(255, 255, 255, 0.9);}
+  --bg-input: rgba(255, 255, 255, 0.9);
+  --bg-table-header: rgba(0, 0, 0, 0.03);
+  --bg-table-hover: rgba(0, 0, 0, 0.015);
+  --bg-chat-received: #f1f5f9;
+  --border-color: rgba(0, 0, 0, 0.09);
+  --shadow-glow: 0 8px 30px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.015);
+}
 
 /* ==========================================================================
    Base Styles & Reset
@@ -889,7 +898,7 @@ button, input, select, textarea {
 }
 
 .chat-msg-bubble-wrapper.received .chat-msg-bubble {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-chat-received);
   border: 1px solid var(--border-color);
   color: var(--text-primary);
   border-bottom-left-radius: 2px;
@@ -1365,7 +1374,7 @@ button, input, select, textarea {
 }
 
 .admin-table th {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--bg-table-header);
   padding: 16px;
   font-weight: 600;
   color: var(--text-secondary);
@@ -1379,7 +1388,7 @@ button, input, select, textarea {
 }
 
 .admin-table tr:hover {
-  background: rgba(255, 255, 255, 0.01);
+  background: var(--bg-table-hover);
 }
 
 /* ==========================================================================
