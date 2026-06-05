@@ -1502,7 +1502,7 @@ export default function App() {
                 </div>
               )}
 
-              <div 
+              <div style={{ display: 'none' }}
                 className={`menu-item ${currentView === 'appDownload' ? 'active' : ''}`}
                 onClick={() => { setCurrentView('appDownload'); setShowNotificationPanel(false); setMobileMenuOpen(false); }}
               >
@@ -2921,7 +2921,7 @@ export default function App() {
             )}
 
             {/* MODULE 8: HYBRID APP DOWNLOAD CENTER */}
-            {currentView === 'appDownload' && (
+            {currentView === 'appDownload' && false && (
               <div className="app-download-container" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                 <div className="glass-card accent-indigo">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
