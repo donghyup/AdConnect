@@ -1035,6 +1035,7 @@ export default function App() {
          ========================================================================== */}
       {!isLoggedIn ? (
         <div className="auth-container">
+          <div className="auth-layout-wrapper">
           <div className="auth-card glass-card accent-indigo">
             <div className="auth-header">
               <div className="logo-icon">
@@ -1343,6 +1344,96 @@ export default function App() {
               </div>
             )}
           </div>
+
+          {/* 모바일 하이브리드 앱 다운로드 QR 코드 카드 */}
+          <div className="auth-card glass-card accent-emerald" style={{ maxWidth: '420px', alignSelf: 'stretch' }}>
+            <div className="auth-header">
+              <div className="logo-icon" style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                <Smartphone size={20} color="#10b981" />
+              </div>
+              <h2>모바일 앱 다운로드</h2>
+              <p>로그인 없이 QR 코드로 즉시 다운로드 및 설치</p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: '100%', justifyContent: 'center' }}>
+              {/* Android APK */}
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'center', background: 'rgba(255, 255, 255, 0.02)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                <div className="qr-image-container" style={{ width: '110px', height: '110px', padding: '6px', margin: 0, flexShrink: 0, position: 'relative' }}>
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(appDownloadUrl)}`}
+                    alt="Android APK QR Code"
+                    className="qr-img-canvas"
+                    style={{ width: '100%', height: '100%', display: 'block', background: 'white', borderRadius: '4px' }}
+                  />
+                  <div className="scan-laser-line" style={{ height: '2px' }}></div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+                  <span style={{ fontSize: '13px', fontWeight: '700', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    Android APK
+                  </span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                    스캔하여 기기에 즉시 APK 패키지 파일을 다운로드합니다.
+                  </span>
+                  <a 
+                    href={appDownloadUrl}
+                    download="adconnect-release.apk"
+                    className="btn btn-secondary" 
+                    style={{ 
+                      fontSize: '11px', 
+                      padding: '6px 12px', 
+                      textDecoration: 'none', 
+                      display: 'inline-flex', 
+                      alignItems: 'center', 
+                      gap: '4px',
+                      width: 'fit-content'
+                    }}
+                  >
+                    <Download size={12} />
+                    APK 다운로드
+                  </a>
+                </div>
+              </div>
+
+              {/* iOS / iPhone */}
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'center', background: 'rgba(255, 255, 255, 0.02)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                <div className="qr-image-container" style={{ width: '110px', height: '110px', padding: '6px', margin: 0, flexShrink: 0, position: 'relative' }}>
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`itms-services://?action=download-manifest&url=${iosDownloadUrl}`)}`}
+                    alt="iOS OTA QR Code"
+                    className="qr-img-canvas"
+                    style={{ width: '100%', height: '100%', display: 'block', background: 'white', borderRadius: '4px' }}
+                  />
+                  <div className="scan-laser-line" style={{ height: '2px' }}></div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+                  <span style={{ fontSize: '13px', fontWeight: '700', color: '#6366f1', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    iOS / iPhone
+                  </span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                    Safari 기기 카메라로 스캔하여 OTA 무선 설치를 진행합니다.
+                  </span>
+                  <a 
+                    href={`itms-services://?action=download-manifest&url=${encodeURIComponent(iosDownloadUrl)}`}
+                    className="btn btn-secondary" 
+                    style={{ 
+                      fontSize: '11px', 
+                      padding: '6px 12px', 
+                      textDecoration: 'none', 
+                      display: 'inline-flex', 
+                      alignItems: 'center', 
+                      gap: '4px',
+                      width: 'fit-content'
+                    }}
+                  >
+                    <Download size={12} />
+                    무선 설치 (OTA)
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
         </div>
       ) : (
         /* ==========================================================================
