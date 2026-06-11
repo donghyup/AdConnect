@@ -79,6 +79,11 @@ const INITIAL_YOUTUBE_VIDEOS = [];
 export default function App() {
   const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 
+  // Real-time WebSocket connection state simulation
+  const [wsStatus, setWsStatus] = useState('DISCONNECTED');
+  const stompClientRef = useRef(null);
+  const [stompConnected, setStompConnected] = useState(false);
+
   // Theme state
   const [theme, setTheme] = useState('dark');
 
@@ -253,11 +258,6 @@ export default function App() {
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
   const [toasts, setToasts] = useState([]);
   
-  // Real-time WebSocket connection state simulation
-  const [wsStatus, setWsStatus] = useState('DISCONNECTED');
-  const stompClientRef = useRef(null);
-  const [stompConnected, setStompConnected] = useState(false);
-
   // WebSocket Connection Management
   useEffect(() => {
     if (isBackendConnected && isLoggedIn) {
