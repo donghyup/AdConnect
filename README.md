@@ -26,7 +26,8 @@ Ad-Connect는 크리에이터(인플루언서)와 광고주 간의 투명하고 
 | :--- | :--- | :--- |
 | <img src="https://img.shields.io/badge/Java_17-007396?style=flat-square&logo=Java&logoColor=white"/> | Language | 백엔드 핵심 애플리케이션 개발 |
 | <img src="https://img.shields.io/badge/Spring_Boot-6DB33F?style=flat-square&logo=Spring-Boot&logoColor=white"/> | Framework | RESTful API 서버 구축 및 웹 어플리케이션 환경 제공 (v3.2.5) |
-| <img src="https://img.shields.io/badge/Spring_Security-6DB33F?style=flat-square&logo=Spring-Security&logoColor=white"/> | Security | 역할 기반 인가 및 엔드포인트 보안 제어 |
+| <img src="https://img.shields.io/badge/Spring_WebSocket-6DB33F?style=flat-square&logo=Spring&logoColor=white"/> | Messaging | STOMP 프로토콜을 사용한 양방향 실시간 채팅/알림 서버 기능 구현 |
+| <img src="https://img.shields.io/badge/Spring_Security-6DB33F?style=flat-square&logo=Spring-Security&logoColor=white"/> | Security | 역할 기반 인가 및 엔드포인트 보안 제어 (웹소켓 연결 허용) |
 | <img src="https://img.shields.io/badge/JSON_Web_Token-000000?style=flat-square&logo=JSON-Web-Tokens&logoColor=white"/> | Authentication | JWT (jjwt v0.12.5) 기반 무상태 인증 체계 구축 |
 | <img src="https://img.shields.io/badge/Spring_Data_JPA-6DB33F?style=flat-square&logo=Spring&logoColor=white"/> | ORM | 데이터베이스 액세스 계층 추상화 및 Entity 제어 |
 | <img src="https://img.shields.io/badge/Lombok-E11E26?style=flat-square"/> | Tool | 보일러플레이트 코드 제거 및 가독성 향상 |
@@ -113,9 +114,10 @@ graph TD
 * 브라우저 Canvas API를 활용한 정밀 터치/마우스 서명 패드 구현.
 * SHA-256 서명값 해시 처리 및 보안 저장 프로세스 제공.
 
-### 6. 실시간 협의 시스템 (WebSocket & Auto-Reply)
-* 양방향 통신 기반의 실시간 채팅방.
-* 백엔드 미연결 시에도 동작하는 백그라운드 키워드 감지형 오토 리플라이(Auto-Reply) 봇 탑재.
+### 6. 실시간 협의 시스템 (WebSocket & Auto-Reply & REST Fallback)
+* **양방향 실시간 STOMP 채팅**: 스프링 WebSocket 메시지 브로커를 활용하여 크리에이터와 광고주 간의 무지연 양방향 메시징 구현.
+* **하이브리드 동기화 (REST API Fallback)**: 네트워크 연결이 해제되거나 방화벽 등으로 웹소켓 접속이 끊어질 경우, 자동으로 2초 주기 REST Polling 동기화로 복구 및 대체되는 장애 예방 메커니즘 제공.
+* **1.5초 지연 오토 리플라이(Auto-Reply) 봇**: 백엔드 스레드를 통한 1.5초 지연 가상 타이핑 시뮬레이션을 구현하여 시나리오, 계약, 정산 등의 키워드 감지형 자동 피드백 응답 자동화.
 
 ---
 
@@ -125,16 +127,26 @@ graph TD
 AdConnect/
 ├── .vscode/               # 에디터 설정
 ├── api/                   # API 관련 정의
-├── backend/               # Spring Boot 백엔드 애플리케이션
-│   ├── src/main/java/     # Java 소스코드 (Controller, Service, Entity, Repository)
+├── backend/               # Spring Boot 백엔드 애플리케이션 (3계층 아키텍처 도입)
+│   ├── src/main/java/     # Java 소스코드 (Controller, Service, Entity, Repository 구조)
+│   │   └── com/adconnect/backend/
+│   │       ├── config/    # Security 및 WebSocket STOMP 브로커 환경설정
+│   │       ├── controller/# API 엔드포인트 및 WebSocket MessageMapping 수신 처리
+│   │       ├── service/   # [NEW] 도메인 핵심 비즈니스 로직 및 트랜잭션 격리 계층
+│   │       └── repository/# JPA 데이터 액세스 레이어
 │   ├── src/main/resources/# 설정 파일 (application.yml - H2/MySQL 프로파일 전환 가능)
 │   ├── Dockerfile         # 백엔드 컨테이너 빌드 파일
-│   └── build.gradle       # Gradle 의존성 빌드 가이드
+│   └── build.gradle       # Gradle 의존성 빌드 가이드 (spring-boot-starter-websocket 포함)
 ├── dist/                  # 빌드 산출물 폴더
 ├── public/                # 정적 리소스 파일
-├── src/                   # React 프런트엔드 애플리케이션
-│   ├── App.jsx            # 핵심 대시보드 및 라우터 원파일 컴포넌트
-│   ├── index.css          # 디자인 시스템 및 글로벌 스타일링 정의
+├── src/                   # React 프런트엔드 애플리케이션 (컴포넌트 구조 고도화)
+│   ├── components/        # [NEW] 단일 책임으로 독립 분할된 리액트 컴포넌트 묶음
+│   │   ├── auth/          # Landing, Login, Signup, OTP 2FA, Install 관련 뷰
+│   │   ├── common/        # Toast, Sidebar, TopHeader 등 공통 UI 구성요소
+│   │   └── dashboard, marketplace, portfolio, chat, contracts, admin, mypage/ # 기능별 전용 뷰
+│   ├── utils/             # [NEW] 경량 native WebSocket STOMP 클라이언트 (stomp.js)
+│   ├── App.jsx            # 상태 중재(State Orchestrator) 및 전체 네비게이션 라우터
+│   ├── index.css          # 디자인 시스템 및 글로벌 Glassmorphism 스타일링 정의
 │   └── main.jsx           # 리액트 마운팅 진입점
 ├── vercel.json            # Vercel SPA 서빙 구성 설정 파일
 ├── package.json           # 노드 패키지 정보
