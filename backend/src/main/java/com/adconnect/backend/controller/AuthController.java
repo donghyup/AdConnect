@@ -5,13 +5,17 @@ import com.adconnect.backend.repository.UserRepository;
 import com.adconnect.backend.security.JwtTokenProvider;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -24,8 +28,13 @@ public class AuthController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
-    private final JavaMailSender mailSender;
     private final Map<String, String> otpStorage = new java.util.concurrent.ConcurrentHashMap<>();
+
+    @Value("${resend.api-key}")
+    private String resendApiKey;
+
+    @Value("${resend.from}")
+    private String resendFrom;
 
     // Bootstrapping mock users disabled for clean production database
     // @PostConstruct
@@ -96,21 +105,36 @@ public class AuthController {
         otpStorage.put(email, otp);
 
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setTo(email);
-            message.setSubject("[AdConnect] 2차 보안 인증 OTP 안내");
-            message.setText("안녕하세요, AdConnect 입니다.\n\n"
-                    + "2차 보안 인증을 위한 OTP 번호는 다음과 같습니다:\n\n"
-                    + "OTP 인증번호: " + otp + "\n\n"
-                    + "화면에 6자리 OTP를 입력해 주시기 바랍니다.\n"
-                    + "본 메일은 발신 전용입니다.\n"
-                    + "감사합니다.");
-            mailSender.send(message);
+            HttpClient client = HttpClient.newHttpClient();
+            String jsonBody = "{"
+                    + "\"from\":\"" + resendFrom + "\","
+                    + "\"to\":\"" + email + "\","
+                    + "\"subject\":\"[AdConnect] 2차 보안 인증 OTP 안내\","
+                    + "\"html\":\"<p>안녕하세요, AdConnect 입니다.</p>"
+                    + "<p>2차 보안 인증을 위한 OTP 번호는 다음과 같습니다:</p>"
+                    + "<h2 style='color:#4f46e5; letter-spacing:2px;'>" + otp + "</h2>"
+                    + "<p>화면에 6자리 OTP를 입력해 주시기 바랍니다.</p>"
+                    + "<p>본 메일은 발신 전용입니다.</p>"
+                    + "<p>감사합니다.</p>\""
+                    + "}";
+
+            HttpRequest apiRequest = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.resend.com/emails"))
+                    .header("Authorization", "Bearer " + resendApiKey)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody, StandardCharsets.UTF_8))
+                    .build();
+
+            HttpResponse<String> apiResponse = client.send(apiRequest, HttpResponse.BodyHandlers.ofString());
+
+            if (apiResponse.statusCode() >= 300) {
+                throw new RuntimeException("Resend API returned status code " + apiResponse.statusCode() + ": " + apiResponse.body());
+            }
         } catch (Exception e) {
-            System.err.println("SMTP 메일 전송 실패: " + e.getMessage());
+            System.err.println("Resend 메일 전송 실패: " + e.getMessage());
             System.out.println("[SMTP 전송 실패 디버그용] 생성된 OTP: " + otp);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("message", "2차 인증 메일 발송 중 오류가 발생했습니다. SMTP 설정을 확인해주세요: " + e.getMessage()));
+                    .body(Map.of("message", "2차 인증 메일 발송 중 오류가 발생했습니다. API 설정을 확인해주세요: " + e.getMessage()));
         }
 
         // Send OTP (Without returning otp in the JSON response!)
