@@ -1,63 +1,35 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  LayoutDashboard,
-  Megaphone,
-  User,
-  MessageSquare,
-  FileSignature,
-  ShieldAlert,
-  Bell,
-  Moon,
-  Sun,
-  Search,
-  SlidersHorizontal,
-  Filter,
-  DollarSign,
-  Users,
-  Eye,
-  TrendingUp,
-  Send,
-  Check,
-  Play,
-  FileText,
-  CheckCircle2,
-  AlertTriangle,
-  X,
-  LogOut,
-  Upload,
-  ShieldCheck,
-  Award,
-  Clock,
-  ExternalLink,
-  Lock,
-  Mail,
-  RefreshCw,
-  Smartphone,
-  QrCode,
-  Download,
-  Laptop
-} from 'lucide-react';
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend
-} from 'recharts';
+import { ShieldCheck, Sun, Moon, X } from 'lucide-react';
+import { SimpleStompClient } from './utils/stomp';
+
+// Common Components
+import ToastContainer from './components/common/ToastContainer';
+import Sidebar from './components/common/Sidebar';
+import TopHeader from './components/common/TopHeader';
+
+// Auth Components
+import LandingView from './components/auth/LandingView';
+import LoginView from './components/auth/LoginView';
+import SignupView from './components/auth/SignupView';
+import ForgotPasswordView from './components/auth/ForgotPasswordView';
+import OtpVerifyView from './components/auth/OtpVerifyView';
+import InstallView from './components/auth/InstallView';
+
+// Page Views
+import DashboardView from './components/dashboard/DashboardView';
+import MarketplaceView from './components/marketplace/MarketplaceView';
+import PortfolioView from './components/portfolio/PortfolioView';
+import ChatView from './components/chat/ChatView';
+import ContractsView from './components/contracts/ContractsView';
+import AdminView from './components/admin/AdminView';
+import MyPageView from './components/mypage/MyPageView';
 
 /* ==========================================================================
    Mock Data & Predefined Constants
    ========================================================================== */
 
-// 1. Initial Campaign Ads
 const INITIAL_ADS = [];
 
-// 2. Charts Data (Ad Analytics)
 const ANALYTICS_TREND = [
   { name: "5/10", 조회수: 12000, CTR: 2.1, CVR: 0.8 },
   { name: "5/12", 조회수: 24000, CTR: 2.8, CVR: 1.1 },
@@ -74,16 +46,30 @@ const ANALYTICS_ROI = [
   { name: "신작 MMORPG 사전예약", ROI: 210, 예산: 6000000, 매출: 12600000 }
 ];
 
-// 3. Simulated Chat Rooms & Dialogues
-const INITIAL_CHAT_ROOMS = [];
-
-// 4. Initial Notifications
+const INITIAL_CHAT_ROOMS = [
+  {
+    id: 1,
+    name: "네오스마트 (캠페인 매칭 협상)",
+    avatar: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80",
+    lastMsg: "대화를 시작해 보세요.",
+    time: "오전 10:30",
+    unread: 0,
+    online: true,
+    messages: []
+  },
+  {
+    id: 2,
+    name: "플레이아레나 (캠페인 매칭 협상)",
+    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
+    lastMsg: "대화를 시작해 보세요.",
+    time: "어제",
+    unread: 0,
+    online: false,
+    messages: []
+  }
+];
 const INITIAL_NOTIFICATIONS = [];
-
-// 5. Admin Reports List
 const INITIAL_REPORTS = [];
-
-// 6. Creator Portfolio Sync Info
 const INITIAL_YOUTUBE_VIDEOS = [];
 
 /* ==========================================================================
@@ -144,16 +130,12 @@ export default function App() {
       try {
         const response = await fetch(`${API_BASE_URL}/auth/heartbeat`);
         if (response.ok) {
-          const data = await response.json();
           setIsBackendConnected(true);
-          setWsStatus(data.wsStatus || 'CONNECTED');
         } else {
           setIsBackendConnected(false);
-          setWsStatus('DISCONNECTED');
         }
       } catch (err) {
         setIsBackendConnected(false);
-        setWsStatus('DISCONNECTED');
       }
     };
 
@@ -228,9 +210,9 @@ export default function App() {
     }
   }, [isBackendConnected, token]);
 
-  // Fetch chat messages from backend when online and in chat view
+  // Fetch chat messages from backend when online and in chat view (REST Fallback Polling)
   useEffect(() => {
-    if (isBackendConnected && isLoggedIn && currentView === 'chat') {
+    if (isBackendConnected && isLoggedIn && currentView === 'chat' && !stompConnected) {
       const fetchChatMessages = async () => {
         try {
           const response = await fetch(`${API_BASE_URL}/chat/rooms/${activeChatId}/messages`, {
@@ -263,7 +245,8 @@ export default function App() {
       const interval = setInterval(fetchChatMessages, 2000);
       return () => clearInterval(interval);
     }
-  }, [isBackendConnected, isLoggedIn, activeChatId, currentView, token]);
+  }, [isBackendConnected, isLoggedIn, activeChatId, currentView, token, stompConnected]);
+
   const [chatInputText, setChatInputText] = useState('');
   const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
   const [reports, setReports] = useState(INITIAL_REPORTS);
@@ -271,7 +254,125 @@ export default function App() {
   const [toasts, setToasts] = useState([]);
   
   // Real-time WebSocket connection state simulation
-  const [wsStatus, setWsStatus] = useState('CONNECTED');
+  const [wsStatus, setWsStatus] = useState('DISCONNECTED');
+  const stompClientRef = useRef(null);
+  const [stompConnected, setStompConnected] = useState(false);
+
+  // WebSocket Connection Management
+  useEffect(() => {
+    if (isBackendConnected && isLoggedIn) {
+      setWsStatus('CONNECTING');
+      const client = new SimpleStompClient(API_BASE_URL);
+      stompClientRef.current = client;
+
+      client.connect(
+        () => {
+          setStompConnected(true);
+          setWsStatus('CONNECTED');
+          addToast("실시간 알림 및 채팅 웹소켓에 연결되었습니다.", "success");
+        },
+        (err) => {
+          console.error("STOMP connection failed:", err);
+          setStompConnected(false);
+          setWsStatus('DISCONNECTED');
+          addToast("웹소켓 연결에 실패하여 REST Polling(Fallback) 방식으로 전환합니다.", "warning");
+        }
+      );
+
+      client.onDisconnectCallbacks.push(() => {
+        setStompConnected(false);
+        setWsStatus('DISCONNECTED');
+      });
+
+      return () => {
+        client.disconnect();
+        stompClientRef.current = null;
+        setStompConnected(false);
+        setWsStatus('DISCONNECTED');
+      };
+    } else {
+      setStompConnected(false);
+      setWsStatus('DISCONNECTED');
+    }
+  }, [isBackendConnected, isLoggedIn]);
+
+  // WebSocket Subscription to active chat room
+  useEffect(() => {
+    if (stompConnected && stompClientRef.current && activeChatId) {
+      console.log(`Subscribing to /topic/rooms/${activeChatId}`);
+      
+      const fetchInitialMessages = async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/chat/rooms/${activeChatId}/messages`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setChatRooms(prevRooms =>
+              prevRooms.map(room => {
+                if (room.id === activeChatId) {
+                  return {
+                    ...room,
+                    messages: data,
+                    lastMsg: data.length > 0 ? data[data.length - 1].text : room.lastMsg,
+                    time: data.length > 0 ? data[data.length - 1].time : room.time
+                  };
+                }
+                return room;
+              })
+            );
+          }
+        } catch (err) {
+          console.error("Failed to load initial chat history for websocket subscription", err);
+        }
+      };
+      
+      fetchInitialMessages();
+
+      const subscription = stompClientRef.current.subscribe(
+        `/topic/rooms/${activeChatId}`,
+        (message) => {
+          console.log("Received WebSocket message:", message);
+          setChatRooms(prevRooms =>
+            prevRooms.map(room => {
+              if (room.id === activeChatId) {
+                const messageExists = room.messages.some(m => m.id && m.id === message.id);
+                if (messageExists) return room;
+                
+                return {
+                  ...room,
+                  lastMsg: message.text,
+                  time: message.time,
+                  messages: [...room.messages, message]
+                };
+              }
+              return room;
+            })
+          );
+
+          if (currentView !== 'chat' && message.sender !== 'me') {
+            const newNotif = {
+              id: Date.now(),
+              text: `${message.sender === 'them' ? '상대방' : message.sender}님으로부터 신규 메시지가 도착했습니다.`,
+              type: 'chat',
+              time: '방금 전',
+              unread: true,
+              roomId: activeChatId
+            };
+            setNotifications(prev => [newNotif, ...prev]);
+            addToast("새로운 실시간 메시지가 도착했습니다.", "info");
+          }
+        }
+      );
+
+      return () => {
+        console.log(`Unsubscribing from /topic/rooms/${activeChatId}`);
+        subscription.unsubscribe();
+      };
+    }
+  }, [stompConnected, activeChatId, token]);
 
   // Portfolios
   const [youtubeVideos, setYoutubeVideos] = useState(INITIAL_YOUTUBE_VIDEOS);
@@ -286,8 +387,6 @@ export default function App() {
   // Contract & E-Signature Pad
   const [signatureSaved, setSignatureSaved] = useState(false);
   const [signedContract, setSignedContract] = useState(null); // active contract signature state
-  const sigCanvasRef = useRef(null);
-  const [isDrawing, setIsDrawing] = useState(false);
 
   // Toss Payments Gateway Simulator Modal
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -315,7 +414,71 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
-  // Handle auto-replies for chat simulation (Mock WebSocket STOMP reply)
+  // Toss Payments Confirmation
+  const confirmPayment = async (paymentKey, orderId, amount) => {
+    addToast("결제 승인을 요청 중입니다...", "info");
+    if (isBackendConnected) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/payments/confirm`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ paymentKey, orderId, amount })
+        });
+        const data = await response.json();
+        if (response.ok) {
+          addToast(`토스페이먼츠 ${Number(amount).toLocaleString('ko-KR')}원 에스크로 결제가 완료되었습니다.`, "success");
+          addToast("정산 안전 예치금으로 안전하게 보관 처리되었습니다.", "info");
+          
+          const notif = {
+            id: Date.now(),
+            text: `캠페인 예산 ₩${Number(amount).toLocaleString('ko-KR')}원 결제가 완료되었습니다. 정산 보증금이 지급 대기 중입니다.`,
+            type: 'match',
+            time: '방금 전',
+            unread: true
+          };
+          setNotifications(prev => [notif, ...prev]);
+        } else {
+          addToast(`결제 승인 실패: ${data.message || '알 수 없는 오류'}`, "error");
+        }
+      } catch (err) {
+        addToast("결제 승인 중 통신 오류가 발생했습니다.", "error");
+      }
+    } else {
+      addToast(`[Mock] 토스페이먼츠 ${Number(amount).toLocaleString('ko-KR')}원 에스크로 결제가 무사히 완료되었습니다.`, "success");
+      addToast("정산 안전 예치금으로 관리자 계좌에 보관 처리되었습니다. [모의 모드]", "info");
+      
+      const notif = {
+        id: Date.now(),
+        text: `캠페인 예산 ₩${Number(amount).toLocaleString('ko-KR')}원 결제가 완료되었습니다. [모의 모드]`,
+        type: 'match',
+        time: '방금 전',
+        unread: true
+      };
+      setNotifications(prev => [notif, ...prev]);
+    }
+    window.history.replaceState({}, document.title, window.location.pathname);
+  };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentStatus = params.get('payment_status');
+    const paymentKey = params.get('paymentKey');
+    const orderId = params.get('orderId');
+    const amount = params.get('amount');
+
+    if (paymentStatus === 'success' && paymentKey && orderId && amount) {
+      confirmPayment(paymentKey, orderId, amount);
+    } else if (paymentStatus === 'fail') {
+      const msg = params.get('message') || '결제 중 오류가 발생했거나 취소되었습니다.';
+      addToast(`결제 실패: ${msg}`, 'error');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [isBackendConnected, token]);
+
+  // Handle sending message via WebSocket if connected, otherwise fallback to REST API
   const handleSendMessage = async () => {
     if (!chatInputText.trim()) return;
 
@@ -324,6 +487,28 @@ export default function App() {
       return;
     }
 
+    const messagePayload = {
+      roomId: activeChatId,
+      sender: 'me',
+      senderEmail: userEmail,
+      text: chatInputText
+    };
+
+    // 1. WebSocket STOMP send attempt
+    if (stompConnected && stompClientRef.current && stompClientRef.current.connected) {
+      const sent = stompClientRef.current.send(
+        '/app/chat/send',
+        {},
+        JSON.stringify(messagePayload)
+      );
+      if (sent) {
+        setChatInputText('');
+        addToast("메시지가 전송되었습니다 (WebSocket 전송)", "success");
+        return;
+      }
+    }
+
+    // 2. Fallback: REST API send
     if (isBackendConnected) {
       try {
         const response = await fetch(`${API_BASE_URL}/chat/messages/send`, {
@@ -332,22 +517,18 @@ export default function App() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({
-            roomId: activeChatId,
-            sender: 'me',
-            senderEmail: userEmail,
-            text: chatInputText
-          })
+          body: JSON.stringify(messagePayload)
         });
 
         if (response.ok) {
           const savedMsg = await response.json();
           setChatInputText('');
-          addToast("메시지가 전송되었습니다 (API 전송)", "success");
+          addToast("메시지가 전송되었습니다 (API Fallback 전송)", "success");
           
           setChatRooms(prevRooms =>
             prevRooms.map(room => {
               if (room.id === activeChatId) {
+                if (room.messages.some(m => m.id && m.id === savedMsg.id)) return room;
                 return {
                   ...room,
                   lastMsg: savedMsg.text,
@@ -363,6 +544,7 @@ export default function App() {
         addToast("백엔드 통신 중 오류가 발생했습니다.", "error");
       }
     } else {
+      // 3. Mock Mode send
       const newMsg = {
         sender: 'me',
         text: chatInputText,
@@ -436,48 +618,6 @@ export default function App() {
     }
   };
 
-  // Sign drawing Canvas helpers
-  const startDrawing = (e) => {
-    const canvas = sigCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX || e.touches[0].clientX) - rect.left;
-    const y = (e.clientY || e.touches[0].clientY) - rect.top;
-
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    setIsDrawing(true);
-  };
-
-  const draw = (e) => {
-    if (!isDrawing) return;
-    const canvas = sigCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
-    const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
-
-    ctx.lineTo(x, y);
-    ctx.strokeStyle = theme === 'dark' ? '#1e293b' : '#1e293b';
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-  };
-
-  const stopDrawing = () => {
-    setIsDrawing(false);
-  };
-
-  const clearSignature = () => {
-    const canvas = sigCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    setSignatureSaved(false);
-  };
-
   const saveSignature = () => {
     if (isGuestMode) {
       addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
@@ -542,19 +682,43 @@ export default function App() {
 
   // Toss Payments Complete
   const executePayment = () => {
+    if (isGuestMode) {
+      addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
+      return;
+    }
+
     setShowPaymentModal(false);
-    addToast(`토스페이먼츠 ${paymentAmount}원 에스크로 결제가 무사히 완료되었습니다.`, "success");
-    addToast("정산 안전 예치금으로 관리자 계좌에 보관 처리되었습니다.", "info");
-    
-    // Add campaign notification
-    const notif = {
-      id: Date.now(),
-      text: `캠페인 예산 ${paymentAmount}원 결제가 완료되었습니다. 정산 보증금이 지급 대기 중입니다.`,
-      type: 'match',
-      time: '방금 전',
-      unread: true
-    };
-    setNotifications(prev => [notif, ...prev]);
+
+    try {
+      const numericAmount = Number(paymentAmount.replace(/,/g, ''));
+      if (isNaN(numericAmount) || numericAmount <= 0) {
+        addToast("올바르지 않은 결제 금액입니다.", "error");
+        return;
+      }
+
+      // Initialize Toss Payments SDK (VITE_TOSS_CLIENT_KEY env variable, with test key fallback)
+      const clientKey = import.meta.env.VITE_TOSS_CLIENT_KEY || "test_ck_D5aZMgX43o7aNVDRw1rrV5j8n4d1";
+      if (!window.TossPayments) {
+        addToast("토스페이먼츠 SDK가 아직 로드되지 않았습니다.", "error");
+        return;
+      }
+      
+      const tossPayments = window.TossPayments(clientKey);
+      
+      // Request payment
+      tossPayments.requestPayment(paymentMethod === 'card' ? '카드' : '토스페이', {
+        amount: numericAmount,
+        orderId: 'adconnect-' + Date.now(),
+        orderName: '캠페인 보증금 예치',
+        customerName: userName || '크리에이터',
+        successUrl: window.location.origin + '?payment_status=success',
+        failUrl: window.location.origin + '?payment_status=fail',
+      }).catch((err) => {
+        addToast(`결제창 호출 실패: ${err.message}`, "error");
+      });
+    } catch (err) {
+      addToast(`결제 요청 준비 중 오류 발생: ${err.message}`, "error");
+    }
   };
 
   // Add a Campaign Ad (Advertiser View)
@@ -625,47 +789,6 @@ export default function App() {
       setCurrentView('marketplace');
     }
   };
-
-  // Filter Ads logic
-  const filteredAds = ads.filter(ad => {
-    // Role filter: Admins can see all, Creators/Advertisers see approved/pending accordingly
-    if (userRole !== 'admin') {
-      // Creator can see approved campaigns
-      if (ad.status !== '승인 완료' && ad.company !== userName) return false;
-    }
-    
-    // Search query
-    const matchSearch = ad.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                        ad.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        ad.description.toLowerCase().includes(searchQuery.toLowerCase());
-                        
-    // Subscriber range
-    let matchSub = true;
-    if (filterSubscriber !== 'all') {
-      if (filterSubscriber === 'small' && !ad.subscribersRequired.includes('10,000+')) matchSub = false;
-      if (filterSubscriber === 'mid' && !ad.subscribersRequired.includes('30,000+') && !ad.subscribersRequired.includes('50,000+')) matchSub = false;
-      if (filterSubscriber === 'large' && !ad.subscribersRequired.includes('100,000+')) matchSub = false;
-    }
-    
-    // Budget range
-    let matchBudget = true;
-    if (filterBudget !== 'all') {
-      const budgetNum = parseInt(ad.budget.replace(/,/g, ''));
-      if (filterBudget === 'under2' && budgetNum >= 2000000) matchBudget = false;
-      if (filterBudget === '2to5' && (budgetNum < 2000000 || budgetNum > 5000000)) matchBudget = false;
-      if (filterBudget === 'over5' && budgetNum <= 5000000) matchBudget = false;
-    }
-
-    // Genre
-    const matchGenre = filterGenre === 'all' || ad.genre === filterGenre;
-
-    return matchSearch && matchSub && matchBudget && matchGenre;
-  }).sort((a, b) => {
-    if (sortBy === 'recent') return b.id - a.id;
-    if (sortBy === 'budget') return parseInt(b.budget.replace(/,/g, '')) - parseInt(a.budget.replace(/,/g, ''));
-    if (sortBy === 'views') return b.views - a.views;
-    return 0;
-  });
 
   // Login handler
   const handleLoginSubmit = async (e) => {
@@ -909,2700 +1032,256 @@ export default function App() {
   return (
     <div className="app-container">
       {/* Toast Alert Notifications */}
-      <div className="toast-container">
-        {toasts.map(toast => (
-          <div key={toast.id} className={`toast ${toast.type}`}>
-            {toast.type === 'success' && <CheckCircle2 size={18} color="var(--secondary)" />}
-            {toast.type === 'error' && <AlertTriangle size={18} color="var(--accent)" />}
-            {toast.type === 'warning' && <AlertTriangle size={18} color="var(--warning)" />}
-            {toast.type === 'info' && <Bell size={18} color="var(--primary)" />}
-            <span style={{ fontSize: '13px', fontWeight: '500' }}>{toast.message}</span>
-          </div>
-        ))}
-      </div>
+      <ToastContainer toasts={toasts} />
 
-      {/* ==========================================================================
-         A. LOGIN PAGE & AUTH FLOW
-         ========================================================================== */}
       {isInstallMode ? (
-        <div className="auth-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '24px', width: '100%' }}>
-          <div className="auth-card glass-card accent-indigo" style={{ maxWidth: '600px', width: '100%', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <div className="auth-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '8px' }}>
-              <div className="logo-icon">
-                <Smartphone size={20} />
-              </div>
-              <h2 style={{ fontSize: '24px', fontWeight: '800', margin: '8px 0 0 0' }}>Ad-Connect 안심 설치 안내 센터</h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: 0 }}>모바일 앱의 안전한 다운로드와 설치 과정을 돕는 페이지입니다.</p>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              {/* Android Download Column */}
-              <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  Android APK
-                </span>
-                <p style={{ fontSize: '11px', color: 'var(--text-secondary)', textAlign: 'center', margin: 0, minHeight: '32px' }}>안드로이드 스마트폰 전용 설치 파일</p>
-                <a 
-                  href={window.location.origin + '/adconnect-release.apk'}
-                  download="adconnect-release.apk"
-                  className="btn btn-success"
-                  onClick={() => addToast("Android APK 다운로드가 시작되었습니다.", "success")}
-                  style={{ width: '100%', fontSize: '12px', padding: '10px' }}
-                >
-                  <Download size={14} /> APK 다운로드
-                </a>
-              </div>
-
-              {/* iOS Download Column */}
-              <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#6366f1', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  iOS / iPhone
-                </span>
-                <p style={{ fontSize: '11px', color: 'var(--text-secondary)', textAlign: 'center', margin: 0, minHeight: '32px' }}>아이폰 Safari 전용 무선 패키지 설치</p>
-                <a 
-                  href={`itms-services://?action=download-manifest&url=${encodeURIComponent(window.location.origin + '/api/manifest')}`}
-                  className="btn btn-primary"
-                  onClick={() => addToast("iOS 무선 설치가 시작되었습니다.", "info")}
-                  style={{ width: '100%', fontSize: '12px', padding: '10px' }}
-                >
-                  <Play size={14} /> 무선 설치 (OTA)
-                </a>
-              </div>
-            </div>
-
-            {/* Step by Step troubleshooting guide */}
-            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <span style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--warning)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <AlertTriangle size={16} /> 🚨 필독! 설치 차단/악성앱 경고 해결 방법
-              </span>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                <div style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '8px' }}>
-                  <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '2px' }}>1. 카카오톡/네이버 등의 인앱 브라우저 제한</strong>
-                  QR 스캔 후 이 화면이 카카오톡이나 네이버 내부 브라우저에서 열려 있으면 파일 다운로드가 차단될 수 있습니다. 
-                  우측 상단의 더보기(<span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>...</span>) 버튼을 눌러 <strong>[다른 브라우저로 열기]</strong> 또는 <strong>[Chrome으로 열기]</strong>를 선택해 주세요.
-                </div>
-
-                <div style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '8px' }}>
-                  <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '2px' }}>2. "유해한 파일일 수 있음" 경고 무시</strong>
-                  구글 플레이스토어를 통하지 않은 모든 수동 설치 파일은 시스템이 경고를 띄웁니다. 본사 배포용 앱으로 안심하시고 <strong>[무시하고 다운로드]</strong> 또는 <strong>[그래도 다운로드]</strong>를 진행해 주세요.
-                </div>
-
-                <div style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '8px' }}>
-                  <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '2px' }}>3. "Play 프로텍트에 의해 차단됨" 팝업 해결</strong>
-                  설치 시 구글 프로텍트 팝업이 뜨면 <strong>[확인]</strong> 대신 <strong>[세부정보 더보기]</strong>(또는 '자세히 보기') 화살표를 누르고, 아래에 작게 뜨는 <strong>[무시하고 설치]</strong>를 선택해 주세요.
-                </div>
-
-                <div>
-                  <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '2px' }}>4. 설치 버튼이 작동 안 하거나 도중에 꺼지는 경우</strong>
-                  모바일 금융 앱 백신(V3 Mobile Plus, 피싱아이즈 등)이 외부 APK의 설치 시도를 실시간으로 차단하여 튕기는 현상입니다. 백신 앱에서 실시간 탐지를 잠시 종료하거나 PC 원격제어 앱(TeamViewer 등)을 끄고 재시도해 주세요.
-                </div>
-              </div>
-            </div>
-
-            <button 
-              className="btn btn-secondary"
-              onClick={() => {
-                setIsInstallMode(false);
-                const url = new URL(window.location);
-                url.searchParams.delete('mode');
-                window.history.replaceState({}, document.title, url.pathname);
-              }}
-              style={{ width: '100%', fontSize: '13px' }}
-            >
-              Ad-Connect 웹 플랫폼 로그인으로 이동
-            </button>
-          </div>
-        </div>
+        <InstallView 
+          setIsInstallMode={setIsInstallMode} 
+          addToast={addToast} 
+        />
       ) : !isLoggedIn && !isGuestMode ? (
         authStep === 'landing' ? (
-          <div className="landing-container" style={{
-            minHeight: '100vh',
-            width: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '40px 20px',
-            position: 'relative',
-            background: 'var(--bg-app)',
-            overflow: 'hidden'
-          }}>
-            {/* Floating Theme Toggle on Landing Screen */}
+          <LandingView 
+            theme={theme}
+            setTheme={setTheme}
+            setAuthStep={setAuthStep}
+            setIsGuestMode={setIsGuestMode}
+            addToast={addToast}
+          />
+        ) : (
+          <div className="auth-container" style={{ position: 'relative' }}>
             <div style={{ position: 'absolute', top: '24px', right: '24px', zIndex: 100 }}>
               <button 
                 type="button"
                 className="btn-icon" 
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                style={{ width: '44px', height: '44px', borderRadius: '50%', boxShadow: 'var(--shadow-glow)', cursor: 'pointer', background: 'var(--glass-bg)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{ width: '44px', height: '44px', borderRadius: '50%', boxShadow: 'var(--shadow-glow)', cursor: 'pointer' }}
                 title={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
               >
-                {theme === 'dark' ? <Sun size={20} color="var(--primary)" /> : <Moon size={20} color="var(--primary)" />}
+                {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
               </button>
             </div>
-
-            {/* Decorative Background Glows */}
-            <div style={{
-              position: 'absolute',
-              top: '-10%',
-              left: '-10%',
-              width: '40vw',
-              height: '40vw',
-              background: 'radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0) 70%)',
-              zIndex: 0,
-              pointerEvents: 'none'
-            }} />
-            <div style={{
-              position: 'absolute',
-              bottom: '-10%',
-              right: '-10%',
-              width: '40vw',
-              height: '40vw',
-              background: 'radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, rgba(168, 85, 247, 0) 70%)',
-              zIndex: 0,
-              pointerEvents: 'none'
-            }} />
-
-            {/* Main Content Area */}
-            <div className="landing-content" style={{ maxWidth: '1200px', width: '100%', zIndex: 1, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '48px', alignItems: 'center' }}>
-              
-              {/* Hero Header */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', maxWidth: '800px' }}>
-                <div className="logo-icon" style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'var(--gradient-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', boxShadow: 'var(--shadow-glow)', marginBottom: '8px' }}>
-                  <ShieldCheck size={32} />
-                </div>
-                <h1 style={{
-                  fontSize: 'clamp(2.5rem, 6vw, 4.5rem)',
-                  fontWeight: '900',
-                  lineHeight: '1.15',
-                  letterSpacing: '-0.03em',
-                  margin: 0,
-                  background: 'var(--gradient-primary)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  textTransform: 'uppercase'
-                }}>
-                  AD-CONNECT
-                </h1>
-                <p style={{
-                  fontSize: 'clamp(1.1rem, 2.5vw, 1.5rem)',
-                  fontWeight: '500',
-                  color: 'var(--text-primary)',
-                  margin: '8px 0 0 0',
-                  lineHeight: '1.4'
-                }}>
-                  데이터 기반 크리에이터 & 광고주 매칭 플랫폼
-                </p>
-                <p style={{
-                  fontSize: '15px',
-                  color: 'var(--text-secondary)',
-                  maxWidth: '600px',
-                  margin: '12px 0 0 0',
-                  lineHeight: '1.6'
-                }}>
-                  인플루언서 채널의 실시간 조회수, 구독자, 도달률 통계를 바탕으로 매칭부터 안전 에스크로 결제 및 전자 계약까지 원스톱으로 제공합니다.
-                </p>
-
-                {/* Actions CTA */}
-                <div style={{ display: 'flex', gap: '16px', marginTop: '32px', width: '100%', justifyContent: 'center', flexWrap: 'wrap' }}>
-                  <button 
-                    className="btn btn-primary" 
-                    onClick={() => setAuthStep('login')}
-                    style={{ padding: '16px 32px', fontSize: '16px', fontWeight: 'bold', minWidth: '220px', borderRadius: '12px', boxShadow: 'var(--shadow-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer' }}
-                  >
-                    로그인 / 회원가입 시작하기
-                  </button>
-                  <button 
-                    className="btn btn-secondary" 
-                    onClick={() => {
-                      setIsGuestMode(true);
-                      addToast("둘러보기 게스트 모드로 입장했습니다. (읽기 전용)", "info");
-                    }}
-                    style={{ padding: '16px 32px', fontSize: '16px', fontWeight: 'bold', minWidth: '220px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer' }}
-                  >
-                    게스트로 플랫폼 둘러보기 <ExternalLink size={16} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Stats Dashboard Snippet */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: '24px',
-                width: '100%',
-                maxWidth: '1000px',
-                marginTop: '16px'
-              }}>
-                {[
-                  { label: '누적 매칭 성사', value: '12,450건+', icon: <TrendingUp size={20} color="var(--primary)" /> },
-                  { label: '매칭 성공률', value: '97.4%', icon: <CheckCircle2 size={20} color="var(--secondary)" /> },
-                  { label: '활성 크리에이터', value: '15,000명+', icon: <Users size={20} color="var(--accent)" /> },
-                  { label: '평균 캠페인 ROI', value: '184%', icon: <DollarSign size={20} color="#eab308" /> }
-                ].map((stat, idx) => (
-                  <div key={idx} className="glass-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', borderRadius: '16px', background: 'var(--glass-bg)', border: '1px solid var(--border-color)' }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {stat.icon}
-                    </div>
-                    <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>{stat.label}</span>
-                    <strong style={{ fontSize: '24px', color: 'var(--text-primary)', fontWeight: '800' }}>{stat.value}</strong>
+            
+            <div className="auth-layout-wrapper">
+              <div className="auth-card glass-card accent-indigo">
+                <div className="auth-header">
+                  <div className="logo-icon">
+                    <ShieldCheck size={20} />
                   </div>
-                ))}
-              </div>
-
-              {/* Features Section */}
-              <div style={{ width: '100%', maxWidth: '1000px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--text-primary)', textAlign: 'left', borderLeft: '4px solid var(--primary)', paddingLeft: '12px', margin: 0 }}>
-                  핵심 비즈니스 기능
-                </h3>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                  gap: '24px'
-                }}>
-                  {[
-                    { title: '실시간 데이터 매칭', desc: '채널의 통계 분석 및 Recharts 데이터 분석 차트를 통해 성과 지표를 실시간 시각화합니다.', icon: <LayoutDashboard size={20} /> },
-                    { title: '안전 에스크로 결제', desc: '토스페이먼츠(Toss Payments) 게이트웨이 시뮬레이터를 이용한 안전한 예치 대금 거래를 보장합니다.', icon: <ShieldCheck size={20} /> },
-                    { title: '전자 계약 및 서명', desc: '캔버스를 활용한 온라인 전자 서명 작성 및 보안화(SHA-256)된 계약서 PDF 다운로드를 지원합니다.', icon: <FileSignature size={20} /> },
-                    { title: '지능형 매칭 대화방', desc: '광고주와 인플루언서 간의 1:1 전용 실시간 조율 채팅 및 양방향 협상 룸을 제공합니다.', icon: <MessageSquare size={20} /> }
-                  ].map((feat, idx) => (
-                    <div key={idx} className="glass-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px', borderRadius: '16px', background: 'var(--glass-bg)', border: '1px solid var(--border-color)', textAlign: 'left', transition: 'transform 0.2s ease', cursor: 'default' }}
-                         onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
-                         onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
-                      <div style={{ color: 'var(--primary)', width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(99, 102, 241, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {feat.icon}
-                      </div>
-                      <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--text-primary)', margin: 0 }}>{feat.title}</h4>
-                      <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5' }}>{feat.desc}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div style={{ borderTop: '1px solid var(--border-color)', width: '100%', maxWidth: '1000px', paddingTop: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>&copy; 2026 Ad-Connect Inc. All rights reserved.</span>
-                <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: 'var(--text-muted)' }}>
-                  <span style={{ cursor: 'pointer' }} onClick={() => addToast("이용약관 안내 준비 중입니다.", "info")}>이용약관</span>
-                  <span style={{ cursor: 'pointer' }} onClick={() => addToast("개인정보처리방침 안내 준비 중입니다.", "info")}>개인정보처리방침</span>
-                  <span style={{ cursor: 'pointer' }} onClick={() => addToast("고객센터 연락처: support@ad-connect.com", "info")}>고객지원</span>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        ) : (
-          <div className="auth-container" style={{ position: 'relative' }}>
-          {/* Floating Theme Toggle on Login Screen */}
-          <div style={{ position: 'absolute', top: '24px', right: '24px', zIndex: 100 }}>
-            <button 
-              type="button"
-              className="btn-icon" 
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              style={{ width: '44px', height: '44px', borderRadius: '50%', boxShadow: 'var(--shadow-glow)', cursor: 'pointer' }}
-              title={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
-            >
-              {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
-          </div>
-          <div className="auth-layout-wrapper">
-          <div className="auth-card glass-card accent-indigo">
-            <div className="auth-header">
-              <div className="logo-icon">
-                <ShieldCheck size={20} />
-              </div>
-              <h2>AD-CONNECT</h2>
-              <p>크리에이터 데이터 광고 매칭 플랫폼</p>
-            </div>
-
-            {authStep === 'login' ? (
-              <form onSubmit={handleLoginSubmit} className="contract-form">
-
-                <div className="form-group">
-                  <label>이메일 아이디</label>
-                  <div className="search-input-wrapper">
-                    <Mail size={16} className="search-icon" />
-                    <input 
-                      type="email" 
-                      className="input-control" 
-                      placeholder="name@ad-connect.com"
-                      value={authInput.email}
-                      onChange={e => setAuthInput({...authInput, email: e.target.value})}
-                      required 
-                    />
-                  </div>
+                  <h2>AD-CONNECT</h2>
+                  <p>크리에이터 데이터 광고 매칭 플랫폼</p>
                 </div>
 
-                <div className="form-group">
-                  <label>비밀번호</label>
-                  <div className="search-input-wrapper">
-                    <Lock size={16} className="search-icon" />
-                    <input 
-                      type="password" 
-                      className="input-control" 
-                      placeholder="••••••••"
-                      value={authInput.password}
-                      onChange={e => setAuthInput({...authInput, password: e.target.value})}
-                      required 
-                    />
-                  </div>
-                </div>
-
-                <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                  JWT 로그인 요청하기
-                </button>
-
-                <div className="auth-footer-links">
-                  <span className="auth-link" onClick={() => addToast("가입하신 이메일은 가이드 메일 수신처 또는 데모용 계정을 참고하십시오.", "info")}>
-                    아이디 찾기
-                  </span>
-                  <span className="auth-link-divider">|</span>
-                  <span className="auth-link" onClick={() => setAuthStep('forgot')}>
-                    비밀번호 찾기
-                  </span>
-                  <span className="auth-link-divider">|</span>
-                  <span className="auth-link" onClick={() => {
-                    setAuthStep('signup');
-                    setSignupForm({
-                      role: 'creator',
-                      name: '',
-                      email: '',
-                      password: '',
-                      phone: '',
-                      sns: ''
-                    });
-                  }}>
-                    회원가입
-                  </span>
-                </div>
-
-                <div className="divider">소셜 계정 1초 로그인 연동</div>
-
-                <div className="oauth-grid">
-                  <div className="oauth-btn google" onClick={() => addToast("Google 소셜 로그인은 현재 준비 중입니다. 일반 이메일 로그인을 이용해 주세요.", "warning")}>
-                    <span style={{ fontSize: '16px', fontWeight: 'bold' }}>G</span>
-                    Google
-                  </div>
-                  <div className="oauth-btn kakao" onClick={() => addToast("카카오 소셜 로그인은 현재 준비 중입니다. 일반 이메일 로그인을 이용해 주세요.", "warning")}>
-                    <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#3c1e1e' }}>K</span>
-                    Kakao
-                  </div>
-                  <div className="oauth-btn naver" onClick={() => addToast("네이버 소셜 로그인은 현재 준비 중입니다. 일반 이메일 로그인을 이용해 주세요.", "warning")}>
-                    <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#03c75a' }}>N</span>
-                    Naver
-                  </div>
-                </div>
-              </form>
-            ) : authStep === 'forgot' ? (
-              <div className="contract-form">
-                <h3>비밀번호 찾기 / 재설정</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: '8px 0 20px 0' }}>
-                  가입하신 이메일 주소를 입력해 주시면 임시 비밀번호 발급 및 비밀번호 재설정 링크가 포함된 보안 인증 이메일을 발송해 드립니다.
-                </p>
-                <div className="form-group">
-                  <label>가입된 이메일 주소</label>
-                  <div className="search-input-wrapper">
-                    <Mail size={16} className="search-icon" />
-                    <input 
-                      type="email" 
-                      className="input-control" 
-                      placeholder="name@ad-connect.com"
-                      required 
-                    />
-                  </div>
-                </div>
-                <button 
-                  className="btn btn-primary" 
-                  style={{ width: '100%', marginTop: '12px' }}
-                  onClick={() => {
-                    addToast("비밀번호 재설정 보안 이메일이 무사히 발송되었습니다.", "success");
-                    setAuthStep('login');
-                  }}
-                >
-                  비밀번호 재설정 이메일 발송
-                </button>
-                <button 
-                  className="btn btn-secondary" 
-                  style={{ width: '100%', marginTop: '8px' }}
-                  onClick={() => setAuthStep('login')}
-                >
-                  로그인 화면으로 돌아가기
-                </button>
-              </div>
-            ) : authStep === 'signup' ? (
-              <form onSubmit={handleSignupSubmit} className="contract-form">
-                <h3>AD-CONNECT 신규 회원가입</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: '4px 0 16px 0' }}>
-                  크리에이터 혹은 광고주로 가입하여 다양한 매칭 혜택과 분석 서비스를 경험해 보세요.
-                </p>
-
-                <div className="form-group">
-                  <label>가입 역할 선택</label>
-                  <div className="payment-method-selector">
-                    <div 
-                      className={`payment-method-btn ${signupForm.role === 'creator' ? 'active' : ''}`}
-                      onClick={() => setSignupForm({...signupForm, role: 'creator'})}
-                    >
-                      크리에이터
-                    </div>
-                    <div 
-                      className={`payment-method-btn ${signupForm.role === 'advertiser' ? 'active' : ''}`}
-                      onClick={() => setSignupForm({...signupForm, role: 'advertiser'})}
-                    >
-                      광고주
-                    </div>
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label>사용자 이름 / 기업명 *</label>
-                  <input 
-                    type="text" 
-                    className="input-control" 
-                    placeholder="예: 홍길동 또는 네오디지털"
-                    value={signupForm.name}
-                    onChange={e => setSignupForm({...signupForm, name: e.target.value})}
-                    required 
+                {authStep === 'login' && (
+                  <LoginView 
+                    authInput={authInput}
+                    setAuthInput={setAuthInput}
+                    handleLoginSubmit={handleLoginSubmit}
+                    setAuthStep={setAuthStep}
+                    setSignupForm={setSignupForm}
+                    addToast={addToast}
                   />
-                </div>
-
-                <div className="form-group">
-                  <label>이메일 아이디 *</label>
-                  <div className="search-input-wrapper">
-                    <Mail size={16} className="search-icon" />
-                    <input 
-                      type="email" 
-                      className="input-control" 
-                      placeholder="name@ad-connect.com"
-                      value={signupForm.email}
-                      onChange={e => setSignupForm({...signupForm, email: e.target.value})}
-                      required 
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label>비밀번호 *</label>
-                  <div className="search-input-wrapper">
-                    <Lock size={16} className="search-icon" />
-                    <input 
-                      type="password" 
-                      className="input-control" 
-                      placeholder="비밀번호 설정"
-                      value={signupForm.password}
-                      onChange={e => setSignupForm({...signupForm, password: e.target.value})}
-                      required 
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div className="form-group">
-                    <label>연락처 (선택)</label>
-                    <input 
-                      type="text" 
-                      className="input-control" 
-                      placeholder="010-0000-0000"
-                      value={signupForm.phone || ''}
-                      onChange={e => setSignupForm({...signupForm, phone: e.target.value})}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>SNS/웹 URL (선택)</label>
-                    <input 
-                      type="text" 
-                      className="input-control" 
-                      placeholder="youtube.com/..."
-                      value={signupForm.sns || ''}
-                      onChange={e => setSignupForm({...signupForm, sns: e.target.value})}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-                  <button 
-                    type="button" 
-                    className="btn btn-secondary" 
-                    style={{ flex: 1 }}
-                    onClick={() => setAuthStep('login')}
-                  >
-                    이전으로
-                  </button>
-                  <button 
-                    type="submit" 
-                    className="btn btn-primary" 
-                    style={{ flex: 2 }}
-                  >
-                    회원가입 완료
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div className="contract-form" style={{ textAlign: 'center' }}>
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
-                  <div className="kpi-icon rose" style={{ width: '60px', height: '60px', borderRadius: '50%' }}>
-                    <Lock size={28} />
-                  </div>
-                </div>
-                <h3>2단계 보안 인증 (OTP 2FA)</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: '8px 0 24px 0' }}>
-                  보안 강화를 위해 등록된 이메일 계정으로 발송된 6자리 일회용 보안 인증번호를 입력해 주십시오. (기본값: 임의 번호 입력 가능)
-                </p>
-
-                <div className="otp-box-container">
-                  {otpCode.map((digit, idx) => (
-                    <input
-                      key={idx}
-                      id={`otp-${idx}`}
-                      type="text"
-                      maxLength="1"
-                      className="otp-input"
-                      value={digit}
-                      onChange={e => {
-                        const val = e.target.value;
-                        const newOtp = [...otpCode];
-                        newOtp[idx] = val;
-                        setOtpCode(newOtp);
-                        
-                        // Focus next box automatically
-                        if (val && idx < 5) {
-                          document.getElementById(`otp-${idx+1}`).focus();
-                        }
-                      }}
-                      onKeyDown={e => {
-                        if (e.key === 'Backspace' && !otpCode[idx] && idx > 0) {
-                          document.getElementById(`otp-${idx-1}`).focus();
-                        }
-                      }}
-                    />
-                  ))}
-                </div>
-
-                <div style={{ display: 'flex', gap: '12px', marginTop: '32px' }}>
-                  <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setAuthStep('login')}>
-                    이전으로
-                  </button>
-                  <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleOtpVerify}>
-                    최종 인증 완료
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          
-
-        </div>
-        </div>
-        )
-      ) : (
-        /* ==========================================================================
-           B. APPLICATION CONSOLE / MAIN VIEWS
-           ========================================================================== */
-        <>
-          {/* 1. Sidebar Navigation */}
-          <aside className={`sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`}>
-            <div className="sidebar-logo">
-              <div className="logo-icon">
-                <Megaphone size={18} />
-              </div>
-              <h1>Ad-Connect</h1>
-            </div>
-
-            <div className="sidebar-menu">
-              <div 
-                className={`menu-item ${currentView === 'dashboard' ? 'active' : ''}`}
-                onClick={() => { setCurrentView('dashboard'); setShowNotificationPanel(false); setMobileMenuOpen(false); }}
-              >
-                <LayoutDashboard size={18} />
-                대시보드 성과 분석
-              </div>
-
-              <div 
-                className={`menu-item ${currentView === 'marketplace' ? 'active' : ''}`}
-                onClick={() => { setCurrentView('marketplace'); setShowNotificationPanel(false); setMobileMenuOpen(false); }}
-              >
-                <Megaphone size={18} />
-                광고 매칭 보드
-              </div>
-
-              {userRole === 'creator' && (
-                <div 
-                  className={`menu-item ${currentView === 'portfolio' ? 'active' : ''}`}
-                  onClick={() => { setCurrentView('portfolio'); setShowNotificationPanel(false); setMobileMenuOpen(false); }}
-                >
-                  <Award size={18} />
-                  유튜브 포트폴리오
-                </div>
-              )}
-
-              <div 
-                className={`menu-item ${currentView === 'chat' ? 'active' : ''}`}
-                onClick={() => { setCurrentView('chat'); setShowNotificationPanel(false); setMobileMenuOpen(false); }}
-              >
-                <MessageSquare size={18} />
-                실시간 채팅방
-              </div>
-
-              <div 
-                className={`menu-item ${currentView === 'contracts' ? 'active' : ''}`}
-                onClick={() => { setCurrentView('contracts'); setShowNotificationPanel(false); setMobileMenuOpen(false); }}
-              >
-                <FileSignature size={18} />
-                계약 및 정산 관리
-              </div>
-
-              {userRole === 'admin' && (
-                <div 
-                  className={`menu-item ${currentView === 'admin' ? 'active' : ''}`}
-                  onClick={() => { setCurrentView('admin'); setShowNotificationPanel(false); setMobileMenuOpen(false); }}
-                >
-                  <ShieldAlert size={18} />
-                  운영 어드민 센터
-                </div>
-              )}
-
-              <div style={{ display: 'none' }}
-                className={`menu-item ${currentView === 'appDownload' ? 'active' : ''}`}
-                onClick={() => { setCurrentView('appDownload'); setShowNotificationPanel(false); setMobileMenuOpen(false); }}
-              >
-                <Smartphone size={18} />
-                하이브리드 앱 다운로드
-              </div>
-
-              <div 
-                className={`menu-item ${currentView === 'mypage' ? 'active' : ''}`}
-                onClick={() => { setCurrentView('mypage'); setShowNotificationPanel(false); setMobileMenuOpen(false); }}
-              >
-                <User size={18} />
-                마이페이지
-              </div>
-
-              <div 
-                className="menu-item"
-                onClick={handleLogout}
-                style={{ marginTop: 'auto', borderTop: '1px solid var(--border-color)', paddingTop: '16px', color: 'var(--accent)' }}
-              >
-                <LogOut size={18} />
-                로그아웃
-              </div>
-            </div>
-
-            {/* Sidebar User Card with Role Changer for easy testing */}
-            <div className="sidebar-footer">
-              {isGuestMode ? (
-                <div className="user-card guest-card" style={{ border: '1px dashed var(--primary)', cursor: 'default' }} title="게스트 모드">
-                  <div className="logo-icon" style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
-                    <User size={18} />
-                  </div>
-                  <div className="user-info" style={{ flex: 1 }}>
-                    <div className="user-name" style={{ fontSize: '13px', fontWeight: '600' }}>게스트 둘러보기</div>
-                    <div className="user-role" style={{ textTransform: 'uppercase', fontSize: '10px', color: 'var(--primary)' }}>
-                      {userRole} 모드
-                    </div>
-                  </div>
-                  <button 
-                    className="btn btn-primary" 
-                    style={{ padding: '6px 10px', fontSize: '11px', whiteSpace: 'nowrap' }}
-                    onClick={() => {
-                      setIsGuestMode(false);
-                      setIsLoggedIn(false);
-                      setAuthStep('landing');
-                    }}
-                  >
-                    로그인
-                  </button>
-                </div>
-              ) : (
-                <div className="user-card" onClick={() => setCurrentView('mypage')} title="마이페이지 이동">
-                  <img 
-                    src={
-                      userRole === 'creator' 
-                        ? "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=80"
-                        : userRole === 'advertiser'
-                          ? "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"
-                          : "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80"
-                    } 
-                    alt="avatar" 
-                    className="user-avatar" 
-                  />
-                  <div className="user-info">
-                    <div className="user-name">{userName}</div>
-                    <div className="user-role" style={{ textTransform: 'uppercase', fontSize: '10px', color: 'var(--primary)' }}>
-                      {userRole}
-                    </div>
-                  </div>
-                  <div onClick={(e) => { e.stopPropagation(); handleLogout(); }} title="로그아웃">
-                    <LogOut size={16} color="var(--text-muted)" style={{ cursor: 'pointer' }} />
-                  </div>
-                </div>
-              )}
-
-            </div>
-          </aside>
-
-          {/* 2. Main Page Layout */}
-          <main className="main-content">
-            {/* Top Bar with real-time push controls */}
-            <div className="top-header">
-              <div className="header-left-group" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <button 
-                  className="mobile-toggle-btn"
-                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                  title="메뉴 열기"
-                >
-                  <SlidersHorizontal size={18} />
-                </button>
-                <div className="page-title">
-                  <h2>
-                    {currentView === 'dashboard' && '광고주 & 크리에이터 성과 분석'}
-                    {currentView === 'marketplace' && '광고 매칭 스페이스'}
-                    {currentView === 'portfolio' && '유튜브 API 포트폴리오 연동'}
-                    {currentView === 'chat' && '협업 실시간 STOMP 메신저'}
-                    {currentView === 'contracts' && '전자 계약 및 PortOne 결제 안전지대'}
-                    {currentView === 'admin' && '부적절 광고 검수 및 스팸 신고 관리'}
-                    {currentView === 'mypage' && '회원정보 관리 및 설정'}
-                  </h2>
-                  <p>실제 프로덕션 수준의 SaaS 아키텍처 및 무결성 제어</p>
-                </div>
-              </div>
-
-              <div className="header-actions">
-                {/* Mock connection state indicator */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', background: 'rgba(255,255,255,0.02)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
-                  <span className="active-dot" style={{ position: 'relative', display: 'inline-block', width: '8px', height: '8px' }}></span>
-                  <span style={{ color: 'var(--text-secondary)' }}>WS:</span>
-                  <span style={{ fontWeight: 'bold', color: 'var(--secondary)' }}>{wsStatus}</span>
-                </div>
-
-                {/* Theme toggle */}
-                <button className="btn-icon" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-                  {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-                </button>
-
-                {/* Notifications bell */}
-                <div className="notification-bell-container">
-                  <button className="btn-icon" onClick={() => setShowNotificationPanel(!showNotificationPanel)}>
-                    <Bell size={18} />
-                    {notifications.filter(n => n.unread).length > 0 && (
-                      <span className="notification-count">
-                        {notifications.filter(n => n.unread).length}
-                      </span>
-                    )}
-                  </button>
-
-                  {showNotificationPanel && (
-                    <div className="notification-panel">
-                      <div className="notification-panel-header">
-                        <span>실시간 통합 알림</span>
-                        <button 
-                          className="btn" 
-                          style={{ padding: '2px 8px', fontSize: '11px' }} 
-                          onClick={() => {
-                            setNotifications(notifications.map(n => ({ ...n, unread: false })));
-                            addToast("모든 알림을 읽음 처리했습니다.", "success");
-                          }}
-                        >
-                          모두 읽음
-                        </button>
-                      </div>
-                      <div className="notifications-list">
-                        {notifications.length === 0 ? (
-                          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                            새로운 알림이 없습니다.
-                          </div>
-                        ) : (
-                          notifications.map(notif => (
-                            <div 
-                              key={notif.id} 
-                              className={`notification-item ${notif.unread ? 'unread' : ''}`}
-                              onClick={() => handleNotificationClick(notif)}
-                              style={{ cursor: 'pointer' }}
-                            >
-                              <div className="notification-icon-wrapper" style={{ 
-                                background: notif.type === 'match' ? 'rgba(16, 185, 129, 0.1)' : notif.type === 'contract' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                                color: notif.type === 'match' ? 'var(--secondary)' : notif.type === 'contract' ? 'var(--primary)' : 'var(--warning)'
-                              }}>
-                                <Bell size={16} />
-                              </div>
-                              <div className="notification-content">
-                                <p className="notification-text">{notif.text}</p>
-                                <span className="notification-time">{notif.time}</span>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* ==========================================================================
-               C. DYNAMIC MODULES BASED ON NAVIGATION
-               ========================================================================== */}
-
-            {/* MODULE 1: DASHBOARD (Recharts integration) */}
-            {currentView === 'dashboard' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                <div className="kpi-grid">
-                  <div className="glass-card kpi-card accent-indigo">
-                    <div className="kpi-content">
-                      <span className="kpi-label">누적 도달 조회수</span>
-                      <span className="kpi-value">185,000회</span>
-                      <span className="kpi-change up">▲ 24.3% 이번달</span>
-                    </div>
-                    <div className="kpi-icon indigo">
-                      <Eye size={24} />
-                    </div>
-                  </div>
-
-                  <div className="glass-card kpi-card accent-emerald">
-                    <div className="kpi-content">
-                      <span className="kpi-label">평균 매칭 클릭률 (CTR)</span>
-                      <span className="kpi-value">5.20%</span>
-                      <span className="kpi-change up">▲ 1.1% 지난주 대비</span>
-                    </div>
-                    <div className="kpi-icon emerald">
-                      <TrendingUp size={24} />
-                    </div>
-                  </div>
-
-                  <div className="glass-card kpi-card accent-rose">
-                    <div className="kpi-content">
-                      <span className="kpi-label">총 광고 예산 매출</span>
-                      <span className="kpi-value">₩11.3M</span>
-                      <span className="kpi-change up">▲ ₩3.2M 증가</span>
-                    </div>
-                    <div className="kpi-icon rose">
-                      <DollarSign size={24} />
-                    </div>
-                  </div>
-
-                  <div className="glass-card kpi-card accent-rose" style={{ borderLeft: '4px solid var(--warning)' }}>
-                    <div className="kpi-content">
-                      <span className="kpi-label">크리에이터 파트너</span>
-                      <span className="kpi-value">124.5K</span>
-                      <span className="kpi-change up">▲ 4,200명 증감</span>
-                    </div>
-                    <div className="kpi-icon indigo">
-                      <Users size={24} />
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: '32px' }}>
-                  <div className="glass-card" style={{ minWidth: 0 }}>
-                    <h3 style={{ marginBottom: '20px' }}>캠페인 실시간 성과 추이 (조회수 및 CTR 상관관계)</h3>
-                    <div style={{ width: '100%', height: 320 }}>
-                      <ResponsiveContainer>
-                        <LineChart data={ANALYTICS_TREND} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-                          <XAxis dataKey="name" stroke="var(--text-secondary)" />
-                          <YAxis yAxisId="left" stroke="var(--primary)" />
-                          <YAxis yAxisId="right" orientation="right" stroke="var(--secondary)" />
-                          <Tooltip contentStyle={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }} />
-                          <Legend />
-                          <Line yAxisId="left" type="monotone" dataKey="조회수" stroke="var(--primary)" strokeWidth={3} activeDot={{ r: 8 }} />
-                          <Line yAxisId="right" type="monotone" dataKey="CTR" stroke="var(--secondary)" strokeWidth={3} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-
-                  <div className="glass-card" style={{ minWidth: 0 }}>
-                    <h3 style={{ marginBottom: '20px' }}>광고주별 예산 대비 광고 매출 성과 (ROI / Return On Investment)</h3>
-                    <div style={{ width: '100%', height: 320 }}>
-                      <ResponsiveContainer>
-                        <BarChart data={ANALYTICS_ROI} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-                          <XAxis dataKey="name" stroke="var(--text-secondary)" />
-                          <YAxis stroke="var(--text-secondary)" />
-                          <Tooltip contentStyle={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }} />
-                          <Legend />
-                          <Bar dataKey="예산" fill="rgba(99, 102, 241, 0.7)" radius={[4, 4, 0, 0]} />
-                          <Bar dataKey="매출" fill="rgba(16, 185, 129, 0.7)" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="glass-card">
-                  <h3 style={{ marginBottom: '16px' }}>크리에이터 캠페인 참여도 분석</h3>
-                  <div className="admin-table-wrapper">
-                    <table className="admin-table">
-                      <thead>
-                        <tr>
-                          <th>캠페인 정보</th>
-                          <th>평균 조회수</th>
-                          <th>좋아요 참여율</th>
-                          <th>댓글 반응도</th>
-                          <th>추정 전환율(CVR)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {ads.filter(a => a.status === '승인 완료').map(ad => (
-                          <tr key={ad.id}>
-                            <td style={{ fontWeight: 'bold' }}>{ad.title}</td>
-                            <td>{ad.views.toLocaleString()}회</td>
-                            <td>{((ad.likes / ad.views) * 100).toFixed(2)}%</td>
-                            <td>{((ad.comments / ad.views) * 100).toFixed(2)}%</td>
-                            <td><span className="badge badge-emerald">{(ad.id * 1.3).toFixed(1)}%</span></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* MODULE 2: AD BOARD / MARKETPLACE (Advanced filter & Search) */}
-            {currentView === 'marketplace' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                
-                {/* Advanced Search & Filtering Controls */}
-                <div className="glass-card">
-                  <div className="search-filter-bar">
-                    <div className="search-input-wrapper">
-                      <Search size={18} className="search-icon" />
-                      <input 
-                        type="text" 
-                        className="input-control" 
-                        placeholder="광고 캠페인 제목, 광고주 브랜드 명으로 스마트 검색..."
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="filter-group">
-                      <div className="form-group" style={{ width: '160px' }}>
-                        <select 
-                          className="input-control" 
-                          value={filterSubscriber}
-                          onChange={e => setFilterSubscriber(e.target.value)}
-                        >
-                          <option value="all">구독자 제한 (전체)</option>
-                          <option value="small">마이크로 (10,000+)</option>
-                          <option value="mid">미드티어 (30,000 ~ 50,000+)</option>
-                          <option value="large">메가 (100,000+)</option>
-                        </select>
-                      </div>
-
-                      <div className="form-group" style={{ width: '160px' }}>
-                        <select 
-                          className="input-control" 
-                          value={filterBudget}
-                          onChange={e => setFilterBudget(e.target.value)}
-                        >
-                          <option value="all">광고비 예산 (전체)</option>
-                          <option value="under2">200만 원 미만</option>
-                          <option value="2to5">200만 ~ 500만 원</option>
-                          <option value="over5">500만 원 초과</option>
-                        </select>
-                      </div>
-
-                      <div className="form-group" style={{ width: '140px' }}>
-                        <select 
-                          className="input-control" 
-                          value={filterGenre}
-                          onChange={e => setFilterGenre(e.target.value)}
-                        >
-                          <option value="all">콘텐츠 장르</option>
-                          <option value="테크">테크</option>
-                          <option value="게임">게임</option>
-                          <option value="브이로그">브이로그</option>
-                          <option value="요리">요리</option>
-                        </select>
-                      </div>
-
-                      <div className="form-group" style={{ width: '140px' }}>
-                        <select 
-                          className="input-control" 
-                          value={sortBy}
-                          onChange={e => setSortBy(e.target.value)}
-                        >
-                          <option value="recent">최신 활동량순</option>
-                          <option value="budget">높은 광고 단가순</option>
-                          <option value="views">과거 누적조회순</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Campaign Creation Option for Advertisers */}
-                {userRole === 'advertiser' && (
-                  <div className="glass-card accent-emerald">
-                    <h3 style={{ marginBottom: '16px' }}>새로운 광고주 캠페인 등록 및 의뢰</h3>
-                    <form onSubmit={handleAddCampaign} className="contract-form">
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                        <div className="form-group">
-                          <label>캠페인 제목</label>
-                          <input type="text" name="title" className="input-control" placeholder="예: 무선 헤드폰 출시 PPL 영상 협업" required />
-                        </div>
-                        <div className="form-group">
-                          <label>카테고리</label>
-                          <select name="category" className="input-control">
-                            <option value="테크/IT">테크/IT</option>
-                            <option value="뷰티/헬스">뷰티/헬스</option>
-                            <option value="게임">게임</option>
-                            <option value="요리/푸드">요리/푸드</option>
-                            <option value="일상/여행">일상/여행</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-                        <div className="form-group">
-                          <label>광고 예산 집행금액 (원)</label>
-                          <input type="number" name="budget" className="input-control" placeholder="예: 3000000" required />
-                        </div>
-                        <div className="form-group">
-                          <label>최소 유튜브 구독자 기준</label>
-                          <input type="text" name="subscribers" className="input-control" placeholder="예: 50,000+" required />
-                        </div>
-                        <div className="form-group">
-                          <label>기한 설정</label>
-                          <input type="text" name="duration" className="input-control" placeholder="예: 2026-06-01 ~ 2026-07-01" required />
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                        <div className="form-group">
-                          <label>타겟 장르</label>
-                          <input type="text" name="genre" className="input-control" placeholder="예: 테크, 브이로그" />
-                        </div>
-                        <div className="form-group">
-                          <label>활동 가능 지역</label>
-                          <input type="text" name="region" className="input-control" placeholder="예: 서울, 전국" />
-                        </div>
-                      </div>
-
-                      <div className="form-group">
-                        <label>상세 캠페인 가이드 및 설명</label>
-                        <textarea name="description" className="input-control" rows="4" placeholder="제품의 명확한 장점 노출 요구조건 및 동영상 러닝타임 가이드라인 기재..." required></textarea>
-                      </div>
-
-                      <button type="submit" className="btn btn-primary" style={{ width: '220px', alignSelf: 'flex-end' }}>
-                        새 캠페인 등록 (검수 요청)
-                      </button>
-                    </form>
-                  </div>
                 )}
 
-                {/* Ads Matching Feed Grid */}
-                <div className="ad-grid">
-                  {filteredAds.length === 0 ? (
-                    <div className="glass-card" style={{ gridColumn: '1 / -1', padding: '60px', textAlign: 'center' }}>
-                      <AlertTriangle size={48} color="var(--warning)" style={{ marginBottom: '16px' }} />
-                      <h3>조건에 부합하는 매칭 캠페인이 존재하지 않습니다.</h3>
-                      <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>필터 검색조건을 다양하게 조정해 보십시오.</p>
-                    </div>
-                  ) : (
-                    filteredAds.map(ad => (
-                      <div key={ad.id} className="glass-card ad-card">
-                        <div className="ad-header">
-                          <div>
-                            <span className="ad-company">{ad.company}</span>
-                            <h4 className="ad-title">{ad.title}</h4>
-                          </div>
-                          <span className={`badge ${ad.status === '승인 완료' ? 'badge-emerald' : ad.status === '승인 대기' ? 'badge-warning' : 'badge-rose'}`}>
-                            {ad.status}
-                          </span>
-                        </div>
+                {authStep === 'forgot' && (
+                  <ForgotPasswordView 
+                    setAuthStep={setAuthStep}
+                    addToast={addToast}
+                  />
+                )}
 
-                        <div className="ad-tags">
-                          <span className="badge badge-indigo">{ad.category}</span>
-                          <span className="badge badge-indigo">{ad.genre}</span>
-                          <span className="badge badge-indigo">{ad.region}</span>
-                        </div>
+                {authStep === 'signup' && (
+                  <SignupView 
+                    signupForm={signupForm}
+                    setSignupForm={setSignupForm}
+                    handleSignupSubmit={handleSignupSubmit}
+                    setAuthStep={setAuthStep}
+                  />
+                )}
 
-                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineBreak: 'anywhere', height: '60px', overflow: 'hidden' }}>
-                          {ad.description}
-                        </p>
-
-                        <div className="ad-meta-info">
-                          <div className="ad-meta-item">
-                            <span className="ad-meta-label">지급 광고비</span>
-                            <span className="ad-meta-value" style={{ color: 'var(--secondary)' }}>₩{ad.budget}</span>
-                          </div>
-                          <div className="ad-meta-item">
-                            <span className="ad-meta-label">요구 구독자수</span>
-                            <span className="ad-meta-value">{ad.subscribersRequired}</span>
-                          </div>
-                        </div>
-
-                        <div className="ad-footer">
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{ad.duration}</span>
-                          
-                          {/* Interactions based on role */}
-                          {userRole === 'creator' && ad.status === '승인 완료' && (
-                            <button 
-                              className="btn btn-primary" 
-                              style={{ padding: '8px 16px', fontSize: '12px' }}
-                              onClick={() => {
-                                if (isGuestMode) {
-                                  addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                                  return;
-                                }
-                                addToast("이메일 및 카카오톡으로 매칭 지원서가 광고주에게 전달되었습니다.", "success");
-                                // Realtime chat creation simulator
-                                const exists = chatRooms.find(r => r.id === ad.id);
-                                if (!exists) {
-                                  const newRoom = {
-                                    id: ad.id,
-                                    name: `${ad.company} (캠페인 매칭 협상)`,
-                                    avatar: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80",
-                                    lastMsg: "지원해 주셔서 감사합니다! 협의를 시작해 보시죠.",
-                                    time: "방금 전",
-                                    unread: 1,
-                                    online: true,
-                                    messages: [
-                                      { sender: 'them', text: `안녕하세요 크리에이터님! 등록하신 지원서 조회가 승인되었습니다. '${ad.title}' 캠페인 협업 조건 조율을 시작합니다.`, time: '방금 전' }
-                                    ]
-                                  };
-                                  setChatRooms([newRoom, ...chatRooms]);
-                                  setActiveChatId(ad.id);
-                                }
-                                setCurrentView('chat');
-                              }}
-                            >
-                              캠페인 매칭 지원
-                            </button>
-                          )}
-
-                          {userRole === 'admin' && (
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              {ad.status === '승인 대기' && (
-                                <>
-                                  <button 
-                                    className="btn btn-success" 
-                                    style={{ padding: '6px 12px', fontSize: '11px' }}
-                                    onClick={() => {
-                                      if (isGuestMode) {
-                                        addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                                        return;
-                                      }
-                                      setAds(ads.map(a => a.id === ad.id ? { ...a, status: '승인 완료' } : a));
-                                      addToast("캠페인 승인이 완료되었습니다.", "success");
-                                    }}
-                                  >
-                                    승인
-                                  </button>
-                                  <button 
-                                    className="btn btn-danger" 
-                                    style={{ padding: '6px 12px', fontSize: '11px' }}
-                                    onClick={() => {
-                                      if (isGuestMode) {
-                                        addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                                        return;
-                                      }
-                                      setAds(ads.map(a => a.id === ad.id ? { ...a, status: '반려' } : a));
-                                      addToast("캠페인이 반려 처리되었습니다.", "error");
-                                    }}
-                                  >
-                                    반려
-                                  </button>
-                                </>
-                              )}
-                              <button 
-                                className="btn btn-secondary" 
-                                style={{ padding: '6px 12px', fontSize: '11px' }}
-                                onClick={() => {
-                                  if (isGuestMode) {
-                                    addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                                    return;
-                                  }
-                                  const newReport = {
-                                    id: Date.now(),
-                                    type: "유저 신고",
-                                    target: `광고 ID ${ad.id}: ${ad.title}`,
-                                    reporter: "최고 관리자 검수",
-                                    status: "대기 중",
-                                    date: new Date().toLocaleDateString('ko-KR')
-                                  };
-                                  setReports([newReport, ...reports]);
-                                  addToast("부적절 광고 검수 신고 접수완료.", "warning");
-                                }}
-                              >
-                                신고
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
+                {authStep === 'otp' && (
+                  <OtpVerifyView 
+                    otpCode={otpCode}
+                    setOtpCode={setOtpCode}
+                    handleOtpVerify={handleOtpVerify}
+                    setAuthStep={setAuthStep}
+                  />
+                )}
               </div>
+            </div>
+          </div>
+        )
+      ) : (
+        <>
+          {/* Main Layout */}
+          <Sidebar 
+            mobileMenuOpen={mobileMenuOpen}
+            currentView={currentView}
+            setCurrentView={setCurrentView}
+            setMobileMenuOpen={setMobileMenuOpen}
+            setShowNotificationPanel={setShowNotificationPanel}
+            userRole={userRole}
+            isGuestMode={isGuestMode}
+            setIsGuestMode={setIsGuestMode}
+            setIsLoggedIn={setIsLoggedIn}
+            setAuthStep={setAuthStep}
+            userName={userName}
+            handleLogout={handleLogout}
+          />
+
+          <main className="main-content">
+            <TopHeader 
+              mobileMenuOpen={mobileMenuOpen}
+              setMobileMenuOpen={setMobileMenuOpen}
+              currentView={currentView}
+              wsStatus={wsStatus}
+              theme={theme}
+              setTheme={setTheme}
+              showNotificationPanel={showNotificationPanel}
+              setShowNotificationPanel={setShowNotificationPanel}
+              notifications={notifications}
+              setNotifications={setNotifications}
+              handleNotificationClick={handleNotificationClick}
+              addToast={addToast}
+            />
+
+            {currentView === 'dashboard' && (
+              <DashboardView 
+                ads={ads}
+                analyticsTrend={ANALYTICS_TREND}
+                analyticsRoi={ANALYTICS_ROI}
+              />
             )}
 
-            {/* MODULE 3: PORTFOLIO (YouTube API Mock integration) */}
+            {currentView === 'marketplace' && (
+              <MarketplaceView 
+                userRole={userRole}
+                userName={userName}
+                isGuestMode={isGuestMode}
+                ads={ads}
+                setAds={setAds}
+                reports={reports}
+                setReports={setReports}
+                chatRooms={chatRooms}
+                setChatRooms={setChatRooms}
+                setActiveChatId={setActiveChatId}
+                setCurrentView={setCurrentView}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                filterSubscriber={filterSubscriber}
+                setFilterSubscriber={setFilterSubscriber}
+                filterBudget={filterBudget}
+                setFilterBudget={setFilterBudget}
+                filterGenre={filterGenre}
+                setFilterGenre={setFilterGenre}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+                handleAddCampaign={handleAddCampaign}
+                addToast={addToast}
+                isBackendConnected={isBackendConnected}
+                API_BASE_URL={API_BASE_URL}
+                token={token}
+              />
+            )}
+
             {currentView === 'portfolio' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                <div className="glass-card">
-                  <div className="portfolio-header">
-                    <img 
-                      src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=80" 
-                      alt="creator" 
-                      className="portfolio-avatar" 
-                    />
-                    <div className="portfolio-profile">
-                      <span className="badge badge-emerald">구독 인증됨 (YouTube Partner)</span>
-                      <h3 className="portfolio-name">{userName}</h3>
-                      <p style={{ color: 'var(--text-secondary)' }}>주요 장르: IT 디바이스 정밀 리뷰, 생산성 생산도구 개발 및 가이드</p>
-                      
-                      <div className="portfolio-sns" style={{ marginTop: '12px' }}>
-                        <span>유튜브: <strong style={{ color: 'white' }}>youtube.com/c/creator_j</strong></span>
-                        <span>•</span>
-                        <span>인스타그램: <strong style={{ color: 'white' }}>@creator_j_official</strong></span>
-                        <span>•</span>
-                        <span>이메일: <strong style={{ color: 'white' }}>j-creator@gmail.com</strong></span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="portfolio-stats-grid">
-                    <div className="portfolio-stat">
-                      <div className="portfolio-stat-val">{portfolioStats.subscribers}명</div>
-                      <div className="portfolio-stat-lbl">실시간 자동연동 구독자 수</div>
-                    </div>
-                    <div className="portfolio-stat">
-                      <div className="portfolio-stat-val">{portfolioStats.avgViews}회</div>
-                      <div className="portfolio-stat-lbl">최근 영상 평균 조회수</div>
-                    </div>
-                    <div className="portfolio-stat">
-                      <div className="portfolio-stat-val">{portfolioStats.successRate}</div>
-                      <div className="portfolio-stat-lbl">광고주 협업 성공 만족도</div>
-                    </div>
-                    <div className="portfolio-stat">
-                      <div className="portfolio-stat-val">{portfolioStats.collabCount}</div>
-                      <div className="portfolio-stat-lbl">Ad-Connect 협업 누적 이력</div>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
-                    <button 
-                      className="btn btn-primary" 
-                      onClick={handleYoutubeSync}
-                      disabled={isSyncingYoutube}
-                    >
-                      {isSyncingYoutube ? (
-                        <>
-                          <RefreshCw size={16} className="pulse" style={{ marginRight: '8px' }} />
-                          YouTube API 실시간 연동 중...
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw size={16} style={{ marginRight: '8px' }} />
-                          유튜브 데이터 동기화 갱신
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="glass-card">
-                  <h3>최근 업로드 영상 목록 (조회수 자동 분석 포함)</h3>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '4px' }}>YouTube API를 경유하여 크리에이터 피드에서 가장 인기 있는 동영상 3건을 실시간 분석합니다.</p>
-
-                  <div className="youtube-videos">
-                    {youtubeVideos.map(video => (
-                      <div key={video.id} className="video-card">
-                        <div className="video-thumbnail-wrapper">
-                          <img src={video.image} alt={video.title} className="video-thumbnail" />
-                          <span className="video-duration">{video.duration}</span>
-                          <div style={{ position: 'absolute', top: '8px', left: '8px', background: 'rgba(234, 67, 53, 0.95)', color: 'white', display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold' }}>
-                            <Play size={10} fill="white" />
-                            YouTube
-                          </div>
-                        </div>
-
-                        <div className="video-info">
-                          <h4 className="video-title">{video.title}</h4>
-                          <div className="video-stats">
-                            <span>조회수 <strong>{video.views}</strong></span>
-                            <span>•</span>
-                            <span>좋아요 <strong>{video.likes}</strong></span>
-                            <span>•</span>
-                            <span>댓글 <strong>{video.comments}</strong></span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <PortfolioView 
+                userName={userName}
+                portfolioStats={portfolioStats}
+                handleYoutubeSync={handleYoutubeSync}
+                isSyncingYoutube={isSyncingYoutube}
+                youtubeVideos={youtubeVideos}
+              />
             )}
 
-            {/* MODULE 4: REAL-TIME CHAT (WebSocket simulator) */}
             {currentView === 'chat' && (
-              <div className="glass-card" style={{ padding: 0 }}>
-                <div className="chat-container">
-                  {/* Chat rooms list */}
-                  <div className="chat-rooms-list">
-                    <div className="chat-rooms-header">
-                      실시간 대화 목록 ({chatRooms.length})
-                    </div>
-                    <div className="chat-rooms">
-                      {chatRooms.map(room => (
-                        <div 
-                          key={room.id} 
-                          className={`chat-room-item ${room.id === activeChatId ? 'active' : ''}`}
-                          onClick={() => {
-                            setActiveChatId(room.id);
-                            // Read markers reset simulation
-                            setChatRooms(chatRooms.map(r => r.id === room.id ? { ...r, unread: 0 } : r));
-                          }}
-                        >
-                          <div className="chat-room-avatar-wrapper">
-                            <img src={room.avatar} alt="user" className="user-avatar" />
-                            {room.online && <span className="active-dot"></span>}
-                          </div>
-
-                          <div className="chat-room-meta">
-                            <div className="chat-room-name-bar">
-                              <span className="chat-room-name">{room.name}</span>
-                              <span className="chat-room-time">{room.time}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span className="chat-room-last-msg">{room.lastMsg}</span>
-                              {room.unread > 0 && (
-                                <span className="chat-unread-badge">{room.unread}</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Chat window */}
-                  <div className="chat-window">
-                    {/* Chat header */}
-                    <div className="chat-header">
-                      <div className="chat-header-user">
-                        <img 
-                          src={chatRooms.find(r => r.id === activeChatId)?.avatar} 
-                          alt="user" 
-                          className="user-avatar" 
-                        />
-                        <div>
-                          <h4 style={{ fontSize: '15px' }}>{chatRooms.find(r => r.id === activeChatId)?.name}</h4>
-                          <span style={{ fontSize: '11px', color: 'var(--secondary)' }}>
-                            ● 실시간 STOMP 프로토콜 암호화 채널 연결 완료
-                          </span>
-                        </div>
-                      </div>
-
-                      <button 
-                        className="btn btn-secondary"
-                        style={{ padding: '8px 16px', fontSize: '12px' }}
-                        onClick={() => {
-                          const ad = ads.find(a => a.id === activeChatId);
-                          if (ad) {
-                            setPaymentAmount(ad.budget);
-                          }
-                          setCurrentView('contracts');
-                          addToast("연계 계약서 작성 화면으로 이동합니다.", "info");
-                        }}
-                      >
-                        계약 및 안전 결제 작성
-                      </button>
-                    </div>
-
-                    {/* Chat Messages */}
-                    <div className="chat-messages">
-                      {chatRooms.find(r => r.id === activeChatId)?.messages.map((msg, i) => (
-                        <div key={i} className={`chat-msg-bubble-wrapper ${msg.sender === 'me' ? 'sent' : 'received'}`}>
-                          <div className="chat-msg-bubble">
-                            {msg.text}
-                          </div>
-                          <span className="chat-msg-time">
-                            {msg.time} {msg.sender === 'me' && <span style={{ color: 'var(--secondary)' }}><Check size={10} /> 읽음</span>}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Chat Input bar */}
-                    <div className="chat-input-bar">
-                      <input 
-                        type="text" 
-                        className="input-control" 
-                        placeholder="실시간 STOMP 협업 메시지 전송..."
-                        value={chatInputText}
-                        onChange={e => setChatInputText(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') handleSendMessage();
-                        }}
-                      />
-                      <button className="btn btn-primary" onClick={handleSendMessage} style={{ padding: '12px' }}>
-                        <Send size={16} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <ChatView 
+                chatRooms={chatRooms}
+                setChatRooms={setChatRooms}
+                activeChatId={activeChatId}
+                setActiveChatId={setActiveChatId}
+                ads={ads}
+                setPaymentAmount={setPaymentAmount}
+                setCurrentView={setCurrentView}
+                chatInputText={chatInputText}
+                setChatInputText={setChatInputText}
+                handleSendMessage={handleSendMessage}
+                addToast={addToast}
+              />
             )}
 
-            {/* MODULE 5: CONTRACTS & PAYMENTS (E-Signature, PDF, Toss payment simulator) */}
             {currentView === 'contracts' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                <div className="glass-card">
-                  <h3>전자 계약 & 에스크로 안전 정산 시스템</h3>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>
-                    크리에이터와 광고주가 체결할 법적 구속력을 가진 전자 계약서 초안입니다. 전자서명 완료 및 PortOne(토스 페이먼츠) 대금 에치와 동시에 계약 효력이 시작됩니다.
-                  </p>
-
-                  <div style={{ display: 'flex', gap: '20px', marginTop: '24px' }}>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                      <div className="portfolio-stat" style={{ textAlign: 'left', background: 'rgba(99, 102, 241, 0.05)', borderColor: 'var(--primary)' }}>
-                        <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <ShieldCheck size={18} color="var(--primary)" />
-                          안전 거래 에스크로 보증금 결제 정보
-                        </h4>
-                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '8px 0' }}>
-                          광고주는 수수료 3%를 제외한 금액을 플랫폼 안전 정산 계좌에 예치해야 합니다. 작업물이 최종 업로드 완료되어 광고주 승인이 나면 지급 처리됩니다.
-                        </p>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '12px' }}>
-                          <span style={{ fontWeight: 'bold' }}>예치 보증금: ₩{paymentAmount}</span>
-                          {userRole === 'advertiser' && (
-                            <button 
-                              className="btn btn-success" 
-                              style={{ padding: '6px 12px', fontSize: '12px' }}
-                              onClick={() => {
-                                if (isGuestMode) {
-                                  addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                                  return;
-                                }
-                                setShowPaymentModal(true);
-                              }}
-                            >
-                              Toss Payments 보증금 결제
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Electronic Contract Sheet */}
-                      <div className="contract-paper">
-                        <div className="contract-title">광고 콘텐츠 제작 매칭 협업 계약서</div>
-
-                        <div className="contract-section">
-                          <div className="contract-section-title">제 1 조 (목적)</div>
-                          <p>본 계약은 광고주(이하 '갑')가 요청한 브랜드 상품 홍보를 위한 브랜디드 비디오 제작 및 송출 업무를 크리에이터(이하 '을')에게 위탁하며, 양 당사자의 협업 의무를 규정함을 목적으로 한다.</p>
-                        </div>
-
-                        <div className="contract-section">
-                          <div className="contract-section-title">제 2 조 (제작 사양 및 가이드라인)</div>
-                          <table className="contract-details-table">
-                            <tbody>
-                              <tr>
-                                <td className="label">프로젝트 명</td>
-                                <td>네오핏 Pro 스마트워치 신제품 웰메이드 리뷰 및 브랜디드 가이드</td>
-                              </tr>
-                              <tr>
-                                <td className="label">콘텐츠 형태</td>
-                                <td>유튜브 15분 내외 고품질 웰메이드 영상 1편 + 고정 댓글 링크 삽입</td>
-                              </tr>
-                              <tr>
-                                <td className="label">계약 대금</td>
-                                <td>₩{paymentAmount} (일시불, 원천세 및 수수료 3% 별도 공제 후 정산)</td>
-                              </tr>
-                              <tr>
-                                <td className="label">제출 및 송출일</td>
-                                <td>2026년 06월 01일 오후 6시 이전</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-
-                        <div className="contract-section">
-                          <div className="contract-section-title">제 3 조 (대금의 결제 및 정산)</div>
-                          <p>
-                            '갑'은 계약금 총액 ₩{paymentAmount}을 'Ad-Connect' 플랫폼의 에스크로(안전 결제)를 활용하여 선결제 완료해야 한다. '을'이 완성된 콘텐츠를 송출 완료하고 최종 검수가 승인되면 플랫폼은 대금을 즉시 '을'에게 정산 지급한다.
-                          </p>
-                        </div>
-
-                        {/* Signed status stamp */}
-                        {signedContract ? (
-                          <div style={{ position: 'absolute', top: '40px', right: '40px', border: '3px double var(--secondary)', color: 'var(--secondary)', transform: 'rotate(15deg)', padding: '8px 16px', borderRadius: '8px', fontSize: '18px', fontWeight: '800', background: 'var(--bg-secondary)', textShadow: '0 0 8px rgba(16, 185, 129, 0.2)' }}>
-                            CONTRACT SIGNED<br />
-                            <span style={{ fontSize: '10px' }}>SHA-256 SECURED</span>
-                          </div>
-                        ) : null}
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', marginTop: '60px', borderTop: '1px solid var(--border-color)', paddingTop: '24px' }}>
-                          <div>
-                            <strong>광고주 ('갑'):</strong>
-                            <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>네오스마트 주식회사 대표이사 김민준 (서명 생략 - 법인 공동인증 완료)</p>
-                          </div>
-                          <div>
-                            <strong>크리에이터 ('을'):</strong>
-                            <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>{userName} (아래 서명 날인)</p>
-                            
-                            {signedContract ? (
-                              <div style={{ marginTop: '12px', background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                                <p style={{ fontSize: '12px', color: 'var(--secondary)', fontWeight: 'bold' }}>✓ 서명 체결 완료</p>
-                                <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>체결 일자: {signedContract.date}</p>
-                                <p style={{ fontSize: '9px', color: 'var(--text-muted)', wordBreak: 'break-all' }}>보안 해시: {signedContract.signHash}</p>
-                              </div>
-                            ) : (
-                              <p style={{ color: 'var(--accent)', fontSize: '12px', marginTop: '12px' }}>서명 대기 중</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Interactive Canvas Signature Pad */}
-                      {!signedContract && (
-                        <div className="signature-pad-container">
-                          <h4>크리에이터 전자서명 서약</h4>
-                          <canvas 
-                            ref={sigCanvasRef}
-                            width="400" 
-                            height="180" 
-                            className="signature-canvas"
-                            onMouseDown={startDrawing}
-                            onMouseMove={draw}
-                            onMouseUp={stopDrawing}
-                            onMouseLeave={stopDrawing}
-                            onTouchStart={startDrawing}
-                            onTouchMove={draw}
-                            onTouchEnd={stopDrawing}
-                          />
-                          <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>마우스 또는 터치를 활용하여 하얀 캔버스 박스 영역 내에 서명해 주십시오.</p>
-                          <div style={{ display: 'flex', gap: '12px' }}>
-                            <button className="btn btn-secondary" onClick={clearSignature}>
-                              새로 지우기
-                            </button>
-                            <button className="btn btn-success" onClick={saveSignature}>
-                              서명 정보 저장
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '12px' }}>
-                        {!signedContract ? (
-                          <button className="btn btn-primary" onClick={handleContractSubmit} style={{ width: '280px' }}>
-                            최종 서명 전자 계약서 제출
-                          </button>
-                        ) : (
-                          <button className="btn btn-secondary" style={{ width: '280px' }} onClick={() => addToast("계약서가 PDF 파일로 안전 다운로드 되었습니다.", "success")}>
-                            <FileText size={16} />
-                            체결 완료된 PDF 계약서 보관 다운로드
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <ContractsView 
+                paymentAmount={paymentAmount}
+                userRole={userRole}
+                isGuestMode={isGuestMode}
+                setShowPaymentModal={setShowPaymentModal}
+                signedContract={signedContract}
+                signatureSaved={signatureSaved}
+                setSignatureSaved={setSignatureSaved}
+                saveSignature={saveSignature}
+                handleContractSubmit={handleContractSubmit}
+                userName={userName}
+                theme={theme}
+                addToast={addToast}
+              />
             )}
 
-            {/* MODULE 6: ADMIN (Reports & Ads review panel) */}
             {currentView === 'admin' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                <div className="glass-card">
-                  <h3>플랫폼 보안 검수 및 스팸 댓글 신고 통합 피드</h3>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>
-                    플랫폼 내 부적절한 불법 광고 및 사기성 스팸 의심 신고를 관리하고 제어하는 실시간 통합 관리 패널입니다.
-                  </p>
-
-                  <div className="admin-table-wrapper" style={{ marginTop: '24px' }}>
-                    <table className="admin-table">
-                      <thead>
-                        <tr>
-                          <th>신고 ID</th>
-                          <th>구분 유형</th>
-                          <th>신고 내용 대상</th>
-                          <th>신고 접수자</th>
-                          <th>상태</th>
-                          <th>접수 일자</th>
-                          <th>관리 조치</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {reports.map(report => (
-                          <tr key={report.id}>
-                            <td>#{report.id}</td>
-                            <td>
-                              <span className={`badge ${report.type.includes('스팸') ? 'badge-warning' : 'badge-rose'}`}>
-                                {report.type}
-                              </span>
-                            </td>
-                            <td style={{ fontWeight: 'bold' }}>{report.target}</td>
-                            <td>{report.reporter}</td>
-                            <td>
-                              <span className={`badge ${report.status === '처리 완료' ? 'badge-emerald' : 'badge-warning'}`}>
-                                {report.status}
-                              </span>
-                            </td>
-                            <td>{report.date}</td>
-                            <td>
-                              {report.status === '대기 중' ? (
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                  <button 
-                                    className="btn btn-primary" 
-                                    style={{ padding: '6px 12px', fontSize: '11px' }}
-                                    onClick={() => {
-                                      if (isGuestMode) {
-                                        addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                                        return;
-                                      }
-                                      setReports(reports.map(r => r.id === report.id ? { ...r, status: '처리 완료' } : r));
-                                      addToast("해당 신고 대상물 차단 및 영구 블락 조치가 완료되었습니다.", "success");
-                                    }}
-                                  >
-                                    블랙리스트 조치
-                                  </button>
-                                  <button 
-                                    className="btn btn-secondary" 
-                                    style={{ padding: '6px 12px', fontSize: '11px' }}
-                                    onClick={() => {
-                                      if (isGuestMode) {
-                                        addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                                        return;
-                                      }
-                                      setReports(reports.filter(r => r.id !== report.id));
-                                      addToast("신고가 반려 처리되었습니다.", "info");
-                                    }}
-                                  >
-                                    기각
-                                  </button>
-                                </div>
-                              ) : (
-                                <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>조치 완료됨</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <div className="glass-card">
-                  <h3>전체 광고 승인 대기 목록 (검수 모듈)</h3>
-                  <div className="admin-table-wrapper" style={{ marginTop: '16px' }}>
-                    <table className="admin-table">
-                      <thead>
-                        <tr>
-                          <th>회사 브랜드명</th>
-                          <th>의뢰 광고 캠페인명</th>
-                          <th>지급 광고비</th>
-                          <th>가이드 등록 상태</th>
-                          <th>승인 승낙조치</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {ads.filter(a => a.status === '승인 대기').map(ad => (
-                          <tr key={ad.id}>
-                            <td style={{ fontWeight: 'bold' }}>{ad.company}</td>
-                            <td>{ad.title}</td>
-                            <td style={{ color: 'var(--secondary)' }}>₩{ad.budget}</td>
-                            <td><span className="badge badge-warning">{ad.status}</span></td>
-                            <td>
-                              <div style={{ display: 'flex', gap: '8px' }}>
-                                <button 
-                                  className="btn btn-success" 
-                                  style={{ padding: '6px 12px', fontSize: '11px' }}
-                                  onClick={async () => {
-                                    if (isGuestMode) {
-                                      addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                                      return;
-                                    }
-                                    if (isBackendConnected) {
-                                      try {
-                                        const response = await fetch(`${API_BASE_URL}/campaigns/${ad.id}/status`, {
-                                          method: 'PATCH',
-                                          headers: {
-                                            'Content-Type': 'application/json',
-                                            'Authorization': `Bearer ${token}`
-                                          },
-                                          body: JSON.stringify({ status: '승인 완료' })
-                                        });
-                                        if (response.ok) {
-                                          setAds(ads.map(a => a.id === ad.id ? { ...a, status: '승인 완료' } : a));
-                                          addToast("신규 광고 의뢰에 대한 검수 승인을 성공했습니다.", "success");
-                                        }
-                                      } catch (err) {
-                                        addToast("백엔드 통신 중 오류가 발생했습니다.", "error");
-                                      }
-                                    } else {
-                                      setAds(ads.map(a => a.id === ad.id ? { ...a, status: '승인 완료' } : a));
-                                      addToast("신규 광고 의뢰에 대한 검수 승인을 성공했습니다. [모의 모드]", "success");
-                                    }
-                                  }}
-                                >
-                                  검수 승인
-                                </button>
-                                <button 
-                                  className="btn btn-danger" 
-                                  style={{ padding: '6px 12px', fontSize: '11px' }}
-                                  onClick={async () => {
-                                    if (isGuestMode) {
-                                      addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                                      return;
-                                    }
-                                    if (isBackendConnected) {
-                                      try {
-                                        const response = await fetch(`${API_BASE_URL}/campaigns/${ad.id}/status`, {
-                                          method: 'PATCH',
-                                          headers: {
-                                            'Content-Type': 'application/json',
-                                            'Authorization': `Bearer ${token}`
-                                          },
-                                          body: JSON.stringify({ status: '반려' })
-                                        });
-                                        if (response.ok) {
-                                          setAds(ads.map(a => a.id === ad.id ? { ...a, status: '반려' } : a));
-                                          addToast("사유 불충분으로 검수 반려되었습니다.", "error");
-                                        }
-                                      } catch (err) {
-                                        addToast("백엔드 통신 중 오류가 발생했습니다.", "error");
-                                      }
-                                    } else {
-                                      setAds(ads.map(a => a.id === ad.id ? { ...a, status: '반려' } : a));
-                                      addToast("사유 불충분으로 검수 반려되었습니다. [모의 모드]", "error");
-                                    }
-                                  }}
-                                >
-                                  반려
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
+              <AdminView 
+                reports={reports}
+                setReports={setReports}
+                ads={ads}
+                setAds={setAds}
+                isGuestMode={isGuestMode}
+                isBackendConnected={isBackendConnected}
+                API_BASE_URL={API_BASE_URL}
+                token={token}
+                addToast={addToast}
+              />
             )}
 
-            {/* MODULE 7: MY PAGE (Profile change, password change, account withdrawal) */}
             {currentView === 'mypage' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                <div className="glass-card">
-                  <div className="portfolio-header">
-                    <img 
-                      src={
-                        userRole === 'creator' 
-                          ? "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=80"
-                          : userRole === 'advertiser'
-                            ? "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80"
-                            : "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=200&auto=format&fit=crop&q=80"
-                      }
-                      alt="creator" 
-                      className="portfolio-avatar" 
-                    />
-                    <div className="portfolio-profile">
-                      <span className="badge badge-indigo" style={{ textTransform: 'uppercase' }}>{userRole} 계정정보</span>
-                      <h3 className="portfolio-name">{userName}</h3>
-                      <p style={{ color: 'var(--text-secondary)' }}>이메일: {userEmail} | 연락처: {userPhone}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mypage-grid">
-                  {/* Left Column: Profile edit & Password edit */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                    {/* 1. 개인정보 변경 */}
-                    <div className="glass-card accent-indigo">
-                      <h3 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <User size={20} color="var(--primary)" />
-                        개인정보 변경
-                      </h3>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '20px' }}>
-                        플랫폼에서 사용되는 회원님의 프로필 이름 및 연락정보를 실시간으로 변경합니다.
-                      </p>
-
-                      <form 
-                        className="contract-form"
-                        onSubmit={async (e) => {
-                          e.preventDefault();
-                          if (isGuestMode) {
-                            addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                            return;
-                          }
-                          if (isBackendConnected) {
-                            try {
-                              const response = await fetch(`${API_BASE_URL}/users/profile`, {
-                                method: 'POST',
-                                headers: {
-                                  'Content-Type': 'application/json',
-                                  'Authorization': `Bearer ${token}`
-                                },
-                                body: JSON.stringify({
-                                  email: userEmail,
-                                  name: profileForm.name,
-                                  phone: profileForm.phone,
-                                  sns: profileForm.sns
-                                })
-                              });
-                              const data = await response.json();
-                              if (response.ok) {
-                                setUserName(data.name);
-                                setUserPhone(data.phone);
-                                setUserSns(data.sns);
-                                addToast(data.message || "개인정보가 성공적으로 변경되었습니다.", "success");
-                              } else {
-                                addToast(data.message || "개인정보 변경 실패", "error");
-                              }
-                            } catch (err) {
-                              addToast("백엔드 통신 오류", "error");
-                            }
-                          } else {
-                            setUserName(profileForm.name);
-                            setUserEmail(profileForm.email);
-                            setUserPhone(profileForm.phone);
-                            setUserSns(profileForm.sns);
-                            addToast("개인정보가 정상적으로 반영되었습니다. [모의 모드]", "success");
-                          }
-                        }}
-                      >
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                          <div className="form-group">
-                            <label>사용자 이름 / 기업명</label>
-                            <input 
-                              type="text" 
-                              className="input-control"
-                              value={profileForm.name}
-                              onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
-                              required 
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label>대표 이메일 주소</label>
-                            <input 
-                              type="email" 
-                              className="input-control"
-                              value={profileForm.email}
-                              onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
-                              required 
-                            />
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                          <div className="form-group">
-                            <label>대표 연락처</label>
-                            <input 
-                              type="text" 
-                              className="input-control"
-                              value={profileForm.phone}
-                              onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
-                              required 
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label>SNS 채널 / 홈페이지 URL</label>
-                            <input 
-                              type="text" 
-                              className="input-control"
-                              value={profileForm.sns}
-                              onChange={(e) => setProfileForm({ ...profileForm, sns: e.target.value })}
-                              required 
-                            />
-                          </div>
-                        </div>
-
-                        <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '8px' }}>
-                          개인정보 저장하기
-                        </button>
-                      </form>
-                    </div>
-
-                    {/* 2. 비밀번호 변경 */}
-                    <div className="glass-card">
-                      <h3 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Lock size={20} color="var(--warning)" />
-                        비밀번호 변경
-                      </h3>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '20px' }}>
-                        계정 로그인을 위한 새로운 보안 비밀번호를 암호화하여 재설정합니다.
-                      </p>
-
-                      <form 
-                        className="contract-form"
-                        onSubmit={async (e) => {
-                          e.preventDefault();
-                          if (isGuestMode) {
-                            addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                            return;
-                          }
-                          if (!passwordForm.current || !passwordForm.new || !passwordForm.confirm) {
-                            addToast("모든 비밀번호 필드를 채워주세요.", "warning");
-                            return;
-                          }
-                          if (passwordForm.new !== passwordForm.confirm) {
-                            addToast("새 비밀번호와 확인 입력이 일치하지 않습니다.", "error");
-                            return;
-                          }
-
-                          if (isBackendConnected) {
-                            try {
-                              const response = await fetch(`${API_BASE_URL}/users/password`, {
-                                method: 'POST',
-                                headers: {
-                                  'Content-Type': 'application/json',
-                                  'Authorization': `Bearer ${token}`
-                                },
-                                body: JSON.stringify({
-                                  email: userEmail,
-                                  current: passwordForm.current,
-                                  new: passwordForm.new
-                                })
-                              });
-                              const data = await response.json();
-                              if (response.ok) {
-                                addToast(data.message || "비밀번호가 안전하게 변경되었습니다.", "success");
-                                setPasswordForm({ current: '', new: '', confirm: '' });
-                              } else {
-                                addToast(data.message || "비밀번호 변경 실패", "error");
-                              }
-                            } catch (err) {
-                              addToast("백엔드 통신 오류", "error");
-                            }
-                          } else {
-                            addToast("비밀번호가 보안 알고리즘(SHA-256)을 거쳐 안전하게 업데이트되었습니다. [모의 모드]", "success");
-                            setPasswordForm({ current: '', new: '', confirm: '' });
-                          }
-                        }}
-                      >
-                        <div className="form-group">
-                          <label>현재 비밀번호</label>
-                          <input 
-                            type="password" 
-                            className="input-control" 
-                            placeholder="현재 비밀번호를 입력하세요"
-                            value={passwordForm.current}
-                            onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })}
-                            required
-                          />
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                          <div className="form-group">
-                            <label>새 비밀번호</label>
-                            <input 
-                              type="password" 
-                              className="input-control" 
-                              placeholder="새 비밀번호"
-                              value={passwordForm.new}
-                              onChange={(e) => setPasswordForm({ ...passwordForm, new: e.target.value })}
-                              required
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label>새 비밀번호 확인</label>
-                            <input 
-                              type="password" 
-                              className="input-control" 
-                              placeholder="새 비밀번호 확인"
-                              value={passwordForm.confirm}
-                              onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })}
-                              required
-                            />
-                          </div>
-                        </div>
-
-                        <button type="submit" className="btn btn-secondary" style={{ width: '100%', marginTop: '8px' }}>
-                          비밀번호 변경 완료
-                        </button>
-                      </form>
-                    </div>
-                  </div>
-
-                  {/* Right Column: Danger Zone / Account Withdrawal */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                    
-                    {/* 소셜 계정 연동 관리 */}
-                    <div className="glass-card">
-                      <h3 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <RefreshCw size={20} color="var(--primary)" />
-                        소셜 계정 연동 관리
-                      </h3>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '20px' }}>
-                        구글, 카카오, 네이버 이메일을 연동하여 1초 간편 로그인 및 중요 계약 알림을 수신할 수 있습니다.
-                      </p>
-
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        {/* Google Row */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <span style={{ fontSize: '12px', fontWeight: 'bold', background: 'rgba(219, 68, 85, 0.1)', color: '#ea4335', padding: '4px 8px', borderRadius: '4px' }}>Google</span>
-                              {googleEmail ? (
-                                <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{googleEmail}</span>
-                              ) : (
-                                <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>연동되지 않음</span>
-                              )}
-                            </div>
-                            {googleEmail && (
-                              <button 
-                                className="btn btn-secondary" 
-                                style={{ padding: '4px 10px', fontSize: '11px', background: 'rgba(255,255,255,0.02)' }}
-                                onClick={() => {
-                                  if (isGuestMode) {
-                                    addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                                    return;
-                                  }
-                                  setGoogleEmail('');
-                                  addToast("Google 계정 연동이 해제되었습니다.", "info");
-                                }}
-                              >
-                                연동 해제
-                              </button>
-                            )}
-                          </div>
-                          {!googleEmail && (
-                            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                              <input 
-                                type="email" 
-                                id="google-link-email"
-                                placeholder="연동할 Google 이메일 입력" 
-                                className="input-control" 
-                                style={{ padding: '6px 12px', fontSize: '12px', flex: 1, minHeight: 'auto' }}
-                              />
-                              <button 
-                                className="btn btn-primary" 
-                                style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
-                                onClick={() => {
-                                  if (isGuestMode) {
-                                    addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                                    return;
-                                  }
-                                  const val = document.getElementById('google-link-email').value;
-                                  if (!val || !val.includes('@')) {
-                                    addToast("올바른 이메일 주소를 입력해주세요.", "error");
-                                    return;
-                                  }
-                                  setGoogleEmail(val);
-                                  addToast(`Google 계정이 연동 완료되었습니다. (${val})`, "success");
-                                }}
-                              >
-                                연동하기
-                              </button>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Kakao Row */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <span style={{ fontSize: '12px', fontWeight: 'bold', background: 'rgba(250, 225, 0, 0.1)', color: '#fee500', padding: '4px 8px', borderRadius: '4px' }}>Kakao</span>
-                              {kakaoEmail ? (
-                                <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{kakaoEmail}</span>
-                              ) : (
-                                <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>연동되지 않음</span>
-                              )}
-                            </div>
-                            {kakaoEmail && (
-                              <button 
-                                className="btn btn-secondary" 
-                                style={{ padding: '4px 10px', fontSize: '11px', background: 'rgba(255,255,255,0.02)' }}
-                                onClick={() => {
-                                  if (isGuestMode) {
-                                    addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                                    return;
-                                  }
-                                  setKakaoEmail('');
-                                  addToast("Kakao 계정 연동이 해제되었습니다.", "info");
-                                }}
-                              >
-                                연동 해제
-                              </button>
-                            )}
-                          </div>
-                          {!kakaoEmail && (
-                            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                              <input 
-                                type="email" 
-                                id="kakao-link-email"
-                                placeholder="연동할 Kakao 이메일 입력" 
-                                className="input-control" 
-                                style={{ padding: '6px 12px', fontSize: '12px', flex: 1, minHeight: 'auto' }}
-                              />
-                              <button 
-                                className="btn btn-primary" 
-                                style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
-                                onClick={() => {
-                                  if (isGuestMode) {
-                                    addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                                    return;
-                                  }
-                                  const val = document.getElementById('kakao-link-email').value;
-                                  if (!val || !val.includes('@')) {
-                                    addToast("올바른 이메일 주소를 입력해주세요.", "error");
-                                    return;
-                                  }
-                                  setKakaoEmail(val);
-                                  addToast(`Kakao 계정이 연동 완료되었습니다. (${val})`, "success");
-                                }}
-                              >
-                                연동하기
-                              </button>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Naver Row */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <span style={{ fontSize: '12px', fontWeight: 'bold', background: 'rgba(3, 207, 93, 0.1)', color: '#03cf5d', padding: '4px 8px', borderRadius: '4px' }}>Naver</span>
-                              {naverEmail ? (
-                                <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{naverEmail}</span>
-                              ) : (
-                                <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>연동되지 않음</span>
-                              )}
-                            </div>
-                            {naverEmail && (
-                              <button 
-                                className="btn btn-secondary" 
-                                style={{ padding: '4px 10px', fontSize: '11px', background: 'rgba(255,255,255,0.02)' }}
-                                onClick={() => {
-                                  if (isGuestMode) {
-                                    addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                                    return;
-                                  }
-                                  setNaverEmail('');
-                                  addToast("Naver 계정 연동이 해제되었습니다.", "info");
-                                }}
-                              >
-                                연동 해제
-                              </button>
-                            )}
-                          </div>
-                          {!naverEmail && (
-                            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                              <input 
-                                type="email" 
-                                id="naver-link-email"
-                                placeholder="연동할 Naver 이메일 입력" 
-                                className="input-control" 
-                                style={{ padding: '6px 12px', fontSize: '12px', flex: 1, minHeight: 'auto' }}
-                              />
-                              <button 
-                                className="btn btn-primary" 
-                                style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
-                                onClick={() => {
-                                  if (isGuestMode) {
-                                    addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                                    return;
-                                  }
-                                  const val = document.getElementById('naver-link-email').value;
-                                  if (!val || !val.includes('@')) {
-                                    addToast("올바른 이메일 주소를 입력해주세요.", "error");
-                                    return;
-                                  }
-                                  setNaverEmail(val);
-                                  addToast(`Naver 계정이 연동 완료되었습니다. (${val})`, "success");
-                                }}
-                              >
-                                연동하기
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="glass-card accent-rose">
-                      <h3 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)' }}>
-                        <AlertTriangle size={20} color="var(--accent)" />
-                        위험구역 (Danger Zone)
-                      </h3>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '20px' }}>
-                        계정 영구 탈퇴 및 데이터 완전 소멸 처리 구역입니다.
-                      </p>
-
-                      <div className="withdraw-box">
-                        <h5>⚠️ 회원 탈퇴 시 주의사항</h5>
-                        <ul>
-                          <li>현재 매칭되어 진행 중인 광고 캠페인 계약이 즉각 중단 및 무효 처리됩니다.</li>
-                          <li>안전거래 정산 에스크로에 예치된 보증금 잔액은 전액 소멸되어 복구되지 않습니다.</li>
-                          <li>등록하신 유튜브 API 포트폴리오 연동 및 CTR 통계 데이터가 즉시 삭제됩니다.</li>
-                        </ul>
-                      </div>
-
-                      {!isWithdrawModalOpen ? (
-                        <button 
-                          className="btn btn-danger" 
-                          style={{ width: '100%', marginTop: '24px' }}
-                          onClick={() => {
-                            setIsWithdrawModalOpen(true);
-                            setWithdrawConfirmName('');
-                          }}
-                        >
-                          Ad-Connect 서비스 탈퇴 신청
-                        </button>
-                      ) : (
-                        <div style={{ marginTop: '24px', background: 'rgba(244, 63, 94, 0.05)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(244, 63, 94, 0.2)' }}>
-                          <p style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--accent)', marginBottom: '12px' }}>
-                            본인 확인을 위해 아래의 닉네임 명칭을 똑같이 입력해주십시오:
-                          </p>
-                          <p style={{ fontSize: '15px', fontWeight: '800', textAlign: 'center', background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', margin: '8px 0 16px 0', letterSpacing: '0.05em' }}>
-                            {userName}
-                          </p>
-                          <div className="form-group">
-                            <input 
-                              type="text" 
-                              className="input-control" 
-                              placeholder="닉네임명을 정확히 입력하세요"
-                              value={withdrawConfirmName}
-                              onChange={(e) => setWithdrawConfirmName(e.target.value)}
-                              style={{ borderColor: withdrawConfirmName === userName ? 'var(--secondary)' : 'var(--accent)' }}
-                            />
-                          </div>
-                          <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-                            <button 
-                              className="btn btn-secondary" 
-                              style={{ flex: 1 }} 
-                              onClick={() => setIsWithdrawModalOpen(false)}
-                            >
-                              탈퇴 취소
-                            </button>
-                            <button 
-                              className="btn btn-danger" 
-                              style={{ flex: 1 }} 
-                              disabled={withdrawConfirmName !== userName}
-                              onClick={async () => {
-                                if (isGuestMode) {
-                                  addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                                  return;
-                                }
-                                if (isBackendConnected) {
-                                  try {
-                                    const response = await fetch(`${API_BASE_URL}/users/withdraw`, {
-                                      method: 'POST',
-                                      headers: {
-                                        'Content-Type': 'application/json',
-                                        'Authorization': `Bearer ${token}`
-                                      },
-                                      body: JSON.stringify({
-                                        email: userEmail,
-                                        confirmName: withdrawConfirmName
-                                      })
-                                    });
-                                    const data = await response.json();
-                                    if (response.ok) {
-                                      setIsLoggedIn(false);
-                                      setAuthStep('login');
-                                      setAuthInput({ email: '', password: '' });
-                                      setOtpCode(['', '', '', '', '', '']);
-                                      setToken('');
-                                      setCurrentView('dashboard');
-                                      setIsWithdrawModalOpen(false);
-                                      addToast(data.message || "Ad-Connect 회원 탈퇴가 무사히 완료되었습니다.", "warning");
-                                    } else {
-                                      addToast(data.message || "회원 탈퇴 실패", "error");
-                                    }
-                                  } catch (err) {
-                                    addToast("백엔드 통신 오류", "error");
-                                  }
-                                } else {
-                                  setIsLoggedIn(false);
-                                  setAuthStep('login');
-                                  setAuthInput({ email: '', password: '' });
-                                  setOtpCode(['', '', '', '', '', '']);
-                                  setCurrentView('dashboard');
-                                  setIsWithdrawModalOpen(false);
-                                  addToast("Ad-Connect 회원 탈퇴가 안전하고 무사히 완료되었습니다. 이용해 주셔서 감사합니다. [모의 모드]", "warning");
-                                }
-                              }}
-                            >
-                              영구 탈퇴 승인
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* MODULE 8: HYBRID APP DOWNLOAD CENTER */}
-            {currentView === 'appDownload' && false && (
-              <div className="app-download-container" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                <div className="glass-card accent-indigo">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
-                    <div>
-                      <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Smartphone size={22} color="var(--primary)" />
-                        하이브리드 앱 다운로드 및 배포 센터 (Android & iOS)
-                      </h3>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>
-                        코르도바(Cordova) 및 Capacitor 환경으로 빌드된 하이브리드 패키지를 다운로드하거나, 설치용 QR 코드를 생성해 배포합니다.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="app-download-grid">
-                  {/* Left Column: Build Pipeline & QR Settings */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                    
-                    {/* Dual OS QR Code & Configuration */}
-                    <div className="glass-card">
-                      <h4>설치용 QR 코드 발급기 (Dual OS 지원)</h4>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '24px' }}>
-                        각 배포 서버의 주소를 기입하면 사용자가 모바일에서 즉시 스캔하여 다운로드하거나 무선 설치할 수 있는 QR 코드가 동적으로 생성됩니다.
-                      </p>
-
-                      <div className="qr-section-layout" style={{ display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
-                        
-                        {/* Android Column */}
-                        <div className="qr-column" style={{ flex: 1, minWidth: '260px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-                          <span style={{ fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981' }}>
-                            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }}></span>
-                            Android (APK 직접 설치)
-                          </span>
-                          
-                          <div className="qr-wrapper-card" style={{ width: '100%', padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <div className="qr-image-container" style={{ margin: '0 auto', position: 'relative', padding: '12px', background: 'white', borderRadius: '8px' }}>
-                              <img 
-                                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(appDownloadUrl)}`}
-                                alt="Android APK QR Code"
-                                style={{ display: 'block', width: '180px', height: '180px' }}
-                              />
-                            </div>
-                            <span className="qr-scan-guide" style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '8px' }}>
-                              기기 카메라 또는 QR 스캐너 앱으로 스캔
-                            </span>
-                          </div>
-
-                          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            <div className="form-group">
-                              <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>APK 배포 주소</label>
-                              <input 
-                                type="text" 
-                                className="input-control"
-                                value={appDownloadUrl}
-                                onChange={(e) => setAppDownloadUrl(e.target.value)}
-                                placeholder="http://192.168.0.1:3000/adconnect-release.apk"
-                                style={{ fontSize: '12px' }}
-                              />
-                            </div>
-
-                            <div style={{ display: 'flex', gap: '6px' }}>
-                              <button 
-                                className="btn btn-secondary"
-                                style={{ flex: 1, fontSize: '11px', padding: '6px 8px' }}
-                                onClick={() => {
-                                  const localIp = `http://192.168.0.15:3000/adconnect-release.apk`;
-                                  setAppDownloadUrl(localIp);
-                                  addToast("Android 개발용 로컬 주소로 설정되었습니다.", "info");
-                                }}
-                              >
-                                로컬 IP 설정
-                              </button>
-                              <button 
-                                className="btn btn-secondary"
-                                style={{ flex: 1, fontSize: '11px', padding: '6px 8px' }}
-                                onClick={() => {
-                                  const prodUrl = `${window.location.origin}/adconnect-release.apk`;
-                                  setAppDownloadUrl(prodUrl);
-                                  addToast("Android 운영 서버 주소로 설정되었습니다.", "success");
-                                }}
-                              >
-                                운영서버 설정
-                              </button>
-                            </div>
-
-                            <button 
-                              className="btn btn-primary" 
-                              style={{ width: '100%', background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none' }}
-                              onClick={() => {
-                                const link = document.createElement('a');
-                                link.href = '/adconnect-release.apk';
-                                link.download = 'adconnect-release.apk';
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                                addToast("Android APK 파일 다운로드가 시작되었습니다.", "success");
-                              }}
-                            >
-                              <Download size={14} style={{ marginRight: '6px' }} />
-                              APK 직접 다운로드
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* iOS Column */}
-                        <div className="qr-column" style={{ flex: 1, minWidth: '260px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-                          <span style={{ fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', color: '#6366f1' }}>
-                            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#6366f1' }}></span>
-                            iOS / iPhone (OTA 무선 설치)
-                          </span>
-                          
-                          <div className="qr-wrapper-card" style={{ width: '100%', padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <div className="qr-image-container" style={{ margin: '0 auto', position: 'relative', padding: '12px', background: 'white', borderRadius: '8px' }}>
-                              <img 
-                                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`itms-services://?action=download-manifest&url=${iosDownloadUrl}`)}`}
-                                alt="iOS OTA QR Code"
-                                style={{ display: 'block', width: '180px', height: '180px' }}
-                              />
-                            </div>
-                            <span className="qr-scan-guide" style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '8px' }}>
-                              iOS Safari 기기 카메라로 스캔하여 즉시 설치
-                            </span>
-                          </div>
-
-                          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            <div className="form-group">
-                              <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>iOS manifest.plist 주소</label>
-                              <input 
-                                type="text" 
-                                className="input-control"
-                                value={iosDownloadUrl}
-                                onChange={(e) => setIosDownloadUrl(e.target.value)}
-                                placeholder="https://adconnect-hybrid.vercel.app/manifest.plist"
-                                style={{ fontSize: '12px' }}
-                              />
-                            </div>
-
-                            <div style={{ display: 'flex', gap: '6px' }}>
-                              <button 
-                                className="btn btn-secondary"
-                                style={{ flex: 1, fontSize: '11px', padding: '6px 8px' }}
-                                onClick={() => {
-                                  const localIp = `http://192.168.0.15:3000/manifest.plist`;
-                                  setIosDownloadUrl(localIp);
-                                  addToast("iOS 개발용 로컬 주소로 설정되었습니다.", "info");
-                                }}
-                              >
-                                로컬 IP 설정
-                              </button>
-                              <button 
-                                className="btn btn-secondary"
-                                style={{ flex: 1, fontSize: '11px', padding: '6px 8px' }}
-                                onClick={() => {
-                                  const prodUrl = `${window.location.origin}/manifest.plist`;
-                                  setIosDownloadUrl(prodUrl);
-                                  addToast("iOS 운영 서버 주소로 설정되었습니다.", "success");
-                                }}
-                              >
-                                운영서버 설정
-                              </button>
-                            </div>
-
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <button 
-                                className="btn btn-primary" 
-                                style={{ flex: 2, background: 'linear-gradient(135deg, #6366f1, #4f46e5)', border: 'none' }}
-                                onClick={() => {
-                                  window.location.href = `itms-services://?action=download-manifest&url=${encodeURIComponent(iosDownloadUrl)}`;
-                                  addToast("iOS OTA 설치 요청이 전송되었습니다.", "info");
-                                }}
-                              >
-                                <Play size={14} style={{ marginRight: '6px' }} />
-                                무선 설치
-                              </button>
-                              <button 
-                                className="btn btn-secondary" 
-                                style={{ flex: 1 }}
-                                onClick={() => {
-                                  const link = document.createElement('a');
-                                  link.href = '/adconnect-release.ipa';
-                                  link.download = 'adconnect-release.ipa';
-                                  document.body.appendChild(link);
-                                  link.click();
-                                  document.body.removeChild(link);
-                                  addToast("iOS IPA 파일 다운로드가 시작되었습니다.", "success");
-                                }}
-                                title="IPA 파일 직접 다운로드"
-                              >
-                                <Download size={14} />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Restore Default Button */}
-                      <button 
-                        className="btn btn-secondary"
-                        style={{ width: '100%', marginTop: '20px' }}
-                        onClick={() => {
-                          const origin = window.location.origin;
-                          setAppDownloadUrl(origin + '/adconnect-release.apk');
-                          setIosDownloadUrl(origin + '/api/manifest');
-                          addToast("다운로드 및 OTA Manifest 주소가 현재 접속 도메인으로 복원되었습니다.", "success");
-                        }}
-                      >
-                        <RefreshCw size={14} style={{ marginRight: '6px' }} />
-                        현재 도메인 주소로 자동 동기화
-                      </button>
-                    </div>
-
-                    {/* PWA (Progressive Web App) Guide Card */}
-                    <div className="glass-card accent-indigo" style={{ padding: '24px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                        <Smartphone size={24} color="var(--primary)" />
-                        <h4 style={{ margin: 0 }}>PWA(Progressive Web App) 무설치 즉시 앱 사용 가이드</h4>
-                      </div>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '20px', lineHeight: '1.6' }}>
-                        스토어나 개발자 서명 제약 없이, 모바일 브라우저의 PWA 기술을 활용해 홈 화면에 네이티브 앱처럼 아이콘을 추가하고 오프라인에서도 완전하게 구동할 수 있습니다.
-                      </p>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
-                        <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px' }}>
-                          <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#6366f1', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
-                            iOS / iPhone 에서 홈 화면 추가
-                          </span>
-                          <ol style={{ fontSize: '12px', color: 'var(--text-secondary)', paddingLeft: '16px', margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <li>Safari 브라우저를 켜고 본 서비스 주소에 접속합니다.</li>
-                            <li>Safari 하단 중앙 of <strong>[공유]</strong> 버튼(네모 위 화살표 모양)을 터치합니다.</li>
-                            <li>목록을 아래로 스크롤하여 <strong>[홈 화면에 추가]</strong> 메뉴를 선택합니다.</li>
-                            <li>홈 화면에 생성된 <strong>Ad-Connect</strong> 아이콘을 눌러 전체화면 앱으로 시작합니다.</li>
-                          </ol>
-                        </div>
-
-                        <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px' }}>
-                          <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
-                            Android / Samsung 에서 홈 화면 추가
-                          </span>
-                          <ol style={{ fontSize: '12px', color: 'var(--text-secondary)', paddingLeft: '16px', margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <li>Chrome 브라우저를 통해 본 서비스 주소에 접속합니다.</li>
-                            <li>주소창 우측 또는 하단 메뉴의 <strong>[옵션 더보기]</strong>(점 3개)를 터치합니다.</li>
-                            <li><strong>[앱 설치]</strong> 또는 <strong>[홈 화면에 추가]</strong> 버튼을 선택합니다.</li>
-                            <li>화면 안내에 따라 설치 버튼을 누르면 바탕 화면에 앱 아이콘이 추가됩니다.</li>
-                          </ol>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Stepper Pipeline Description */}
-                    <div className="glass-card">
-                      <h4>하이브리드 앱 빌드 & 배포 파이프라인</h4>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '24px' }}>
-                        반응형 웹앱 소스로부터 APK 및 iOS 패키징, 서명 및 무선 배포까지 적용하는 표준 프로세스입니다.
-                      </p>
-
-                      <div className="stepper-pipeline">
-                        <div className="step-item">
-                          <div className="step-badge">1</div>
-                          <div className="step-content">
-                            <span className="step-title">반응형 웹앱 빌드 (Build Frontend)</span>
-                            <span className="step-desc">Vite와 React 환경에서 웹 최적화 자산을 빌드합니다.</span>
-                            <code className="step-code">npm run build</code>
-                          </div>
-                        </div>
-
-                        <div className="step-item">
-                          <div className="step-badge">2</div>
-                          <div className="step-content">
-                            <span className="step-title">하이브리드 컨테이너 래핑 (Cordova/Capacitor)</span>
-                            <span className="step-desc">네이티브 쉘을 추가하고 빌드된 웹 파일들을 컨테이너 디렉토리로 동기화합니다.</span>
-                            <code className="step-code">cordova platform add android ios / npx cap add android ios</code>
-                          </div>
-                        </div>
-
-                        <div className="step-item">
-                          <div className="step-badge">3</div>
-                          <div className="step-content">
-                            <span className="step-title">패키징 및 릴리즈 서명 (Sign APK & IPA)</span>
-                            <span className="step-desc">각 플랫폼 SDK를 구동해 빌드하고 Android Keystore 및 Apple 배포 인증서로 서명을 마칩니다.</span>
-                            <code className="step-code">cordova build android --release / cordova build ios --release</code>
-                          </div>
-                        </div>
-
-                        <div className="step-item">
-                          <div className="step-badge">4</div>
-                          <div className="step-content">
-                            <span className="step-title">배포 서버 업로드 & QR 설치 (QR Distribution)</span>
-                            <span className="step-desc">서명된 APK와 IPA 파일을 서버에 업로드한 뒤, Android/iOS 전용 QR 코드 및 OTA(Over-The-Air) 스펙을 통해 사용자가 다운로드할 수 있게 배포합니다.</span>
-                            <span className="step-badge-status">완료 (상단의 QR 코드 스캔 가능)</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right Column: Phone Screen Live Simulator */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                    <div className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <h4 style={{ alignSelf: 'flex-start', marginBottom: '8px' }}>모바일 앱 미리보기</h4>
-                      <p style={{ alignSelf: 'flex-start', color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '24px' }}>
-                        하이브리드 Cordova/Capacitor 컨테이너 내부 및 PWA 전체화면 모드에서 실행되는 Ad-Connect 모바일 반응형 뷰포트 레이아웃입니다.
-                      </p>
-
-                      {/* Smartphone simulator frame */}
-                      <div className="phone-simulator-frame">
-                        <div className="phone-earpiece"></div>
-                        <div className="phone-camera"></div>
-                        <div className="phone-screen-container">
-                          <div className="phone-status-bar">
-                            <span>14:20</span>
-                            <div className="phone-status-icons">
-                              <span>LTE</span>
-                              <span>98%</span>
-                            </div>
-                          </div>
-                          
-                          {/* Mini Responsive App Content */}
-                          <div className="phone-mock-app">
-                            <div className="mock-app-header">
-                              <span style={{ fontSize: '11px', fontWeight: 'bold' }}>AD-CONNECT MOBILE</span>
-                              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--secondary)' }}></div>
-                            </div>
-                            
-                            <div className="mock-app-body">
-                              <div className="mock-widget">
-                                <span className="mock-widget-title">누적 도달수</span>
-                                <span className="mock-widget-val">185,000회</span>
-                              </div>
-
-                              <div className="mock-widget">
-                                <span className="mock-widget-title">평균 클릭률 (CTR)</span>
-                                <span className="mock-widget-val" style={{ color: 'var(--secondary)' }}>5.20%</span>
-                              </div>
-
-                              <div className="mock-widget">
-                                <span className="mock-widget-title">매칭 진행 캠페인</span>
-                                <span className="mock-widget-val" style={{ color: 'var(--primary)' }}>3건</span>
-                              </div>
-
-                              {/* Mini Chart Mockup */}
-                              <div className="mock-chart-container">
-                                <span className="mock-widget-title" style={{ marginBottom: '6px', display: 'block' }}>최근 트래픽 추이</span>
-                                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '40px', paddingTop: '10px' }}>
-                                  <div style={{ width: '12%', height: '30%', background: 'var(--primary)', borderRadius: '2px' }}></div>
-                                  <div style={{ width: '12%', height: '50%', background: 'var(--primary)', borderRadius: '2px' }}></div>
-                                  <div style={{ width: '12%', height: '45%', background: 'var(--primary)', borderRadius: '2px' }}></div>
-                                  <div style={{ width: '12%', height: '70%', background: 'var(--primary)', borderRadius: '2px' }}></div>
-                                  <div style={{ width: '12%', height: '60%', background: 'var(--primary)', borderRadius: '2px' }}></div>
-                                  <div style={{ width: '12%', height: '90%', background: 'var(--secondary)', borderRadius: '2px' }}></div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="phone-home-bar"></div>
-                      </div>
-
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '16px', textAlign: 'center' }}>
-                        * 이 시뮬레이터는 디바이스 크기 360x740 화소 기준 모바일 환경 뷰포트 레이아웃입니다.
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <MyPageView 
+                userRole={userRole}
+                userName={userName}
+                setUserName={setUserName}
+                userEmail={userEmail}
+                setUserEmail={setUserEmail}
+                userPhone={userPhone}
+                setUserPhone={setUserPhone}
+                userSns={userSns}
+                setUserSns={setUserSns}
+                googleEmail={googleEmail}
+                setGoogleEmail={setGoogleEmail}
+                kakaoEmail={kakaoEmail}
+                setKakaoEmail={setKakaoEmail}
+                naverEmail={naverEmail}
+                setNaverEmail={setNaverEmail}
+                profileForm={profileForm}
+                setProfileForm={setProfileForm}
+                passwordForm={passwordForm}
+                setPasswordForm={setPasswordForm}
+                isWithdrawModalOpen={isWithdrawModalOpen}
+                setIsWithdrawModalOpen={setIsWithdrawModalOpen}
+                withdrawConfirmName={withdrawConfirmName}
+                setWithdrawConfirmName={setWithdrawConfirmName}
+                isGuestMode={isGuestMode}
+                isBackendConnected={isBackendConnected}
+                API_BASE_URL={API_BASE_URL}
+                token={token}
+                setToken={setToken}
+                setAuthStep={setAuthStep}
+                setAuthInput={setAuthInput}
+                setOtpCode={setOtpCode}
+                setIsLoggedIn={setIsLoggedIn}
+                setCurrentView={setCurrentView}
+                addToast={addToast}
+              />
             )}
           </main>
 
-          {/* ==========================================================================
-             D. MODAL DIALOGS (Toss Payments Simulator)
-             ========================================================================== */}
+          {/* Toss Payments Gateway Simulator Modal */}
           {showPaymentModal && (
             <div className="payment-modal-overlay">
               <div className="payment-modal">

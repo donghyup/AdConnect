@@ -14,6 +14,7 @@ dist-ssr/
 build/
 bin/
 out/
+backend/build_gradle/
 *.class
 *.log
 

@@ -54,3 +54,7 @@ spring:
 jwt:
   secret: c3VwZXItc2VjcmV0LWtleS1hZC1jb25uZWN0LXBsYXRmb3JtLXByb2R1Y3Rpb24tc2Fhcy1zZWN1cml0eS1hdXRoLWtleQ== # Base64 encoded secret key
   expiration: 86400000 # 24 Hours in milliseconds
+
+# Toss Payments Configuration
+tosspayments:
+  secret-key: ${TOSS_SECRET_KEY:test_sk_zXLkKEypN3WQk6Yn1278VJwZgB2d}
