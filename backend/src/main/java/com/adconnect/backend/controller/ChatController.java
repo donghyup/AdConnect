@@ -20,24 +20,6 @@ public class ChatController {
     private final ChatMessageRepository chatMessageRepository;
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("a h:mm");
 
-    @PostConstruct
-    public void initChatHistory() {
-        if (chatMessageRepository.count() == 0) {
-            // Room 1 (NeoSmart) initial chat seeds
-            chatMessageRepository.save(ChatMessage.builder().roomId(1L).sender("them").senderEmail("mj.kim@neosmart.com").text("안녕하세요! 네오스마트 마케팅팀 김민준 팀장입니다. AI 스마트워치 광고 캠페인 매칭 축하드립니다.").time("오전 10:15").build());
-            chatMessageRepository.save(ChatMessage.builder().roomId(1L).sender("me").senderEmail("j-creator@gmail.com").text("감사합니다! 제품 강점인 AI 헬스케어 비서 기능을 일상 속 상황극에 녹여보려 하는데 의견이 어떠신가요?").time("오전 10:30").build());
-            chatMessageRepository.save(ChatMessage.builder().roomId(1L).sender("them").senderEmail("mj.kim@neosmart.com").text("기존의 뻔한 스펙 설명보다 상황극 형식이 훨씬 몰입도가 높을 것 같아 적극 찬성합니다!").time("오전 10:45").build());
-            chatMessageRepository.save(ChatMessage.builder().roomId(1L).sender("me").senderEmail("j-creator@gmail.com").text("그럼 상황 시나리오 및 스토리보드 작성해서 오늘 중으로 먼저 보내드리겠습니다.").time("오전 11:00").build());
-            chatMessageRepository.save(ChatMessage.builder().roomId(1L).sender("them").senderEmail("mj.kim@neosmart.com").text("네, 크리에이터님! 제안해주신 스토리보드 기획안이 아주 만족스럽습니다.").time("오전 11:20").build());
-
-            // Room 2 (PlayArena) initial chat seeds
-            chatMessageRepository.save(ChatMessage.builder().roomId(2L).sender("them").senderEmail("ls.woo@playarena.com").text("안녕하세요 게임 크리에이터님! 신작 MMORPG 리뷰 광고 관련하여 대화 드립니다.").time("어제 오후 2:00").build());
-            chatMessageRepository.save(ChatMessage.builder().roomId(2L).sender("me").senderEmail("j-creator@gmail.com").text("반갑습니다 본부장님! 사전등록 유입 링크는 영상 본문과 고정댓글 두 곳 모두 적용하면 될까요?").time("어제 오후 2:15").build());
-            chatMessageRepository.save(ChatMessage.builder().roomId(2L).sender("them").senderEmail("ls.woo@playarena.com").text("네, 정확합니다! 추가로 플레이 도중 사용할 수 있는 한정판 쿠폰코드 정보도 함께 삽입될 예정입니다.").time("어제 오후 2:30").build());
-            chatMessageRepository.save(ChatMessage.builder().roomId(2L).sender("them").senderEmail("ls.woo@playarena.com").text("계약서 초안을 업로드 해드렸으니 전자 서명 진행해 주시면 감사하겠습니다.").time("어제 오후 3:00").build());
-        }
-    }
-
     @GetMapping("/rooms/{roomId}/messages")
     public ResponseEntity<List<ChatMessage>> getMessagesByRoom(@PathVariable Long roomId) {
         List<ChatMessage> history = chatMessageRepository.findByRoomIdOrderByIdAsc(roomId);

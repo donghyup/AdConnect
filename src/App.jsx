@@ -55,98 +55,7 @@ import {
    ========================================================================== */
 
 // 1. Initial Campaign Ads
-const INITIAL_ADS = [
-  {
-    id: 1,
-    company: "네오스마트 (Neosmart)",
-    title: "AI 기반 스마트 워치 신제품 리뷰 및 브랜디드 콘텐츠 캠페인",
-    category: "테크/IT",
-    budget: "3,500,000",
-    subscribersRequired: "50,000+",
-    status: "승인 완료", // 승인 대기, 승인 완료, 반려
-    clicks: 1240,
-    views: 45000,
-    registrations: 340,
-    duration: "2026-05-01 ~ 2026-06-01",
-    description: "새롭게 출시되는 AI 탑재 스마트워치 '네오핏 Pro' 제품을 실제 착용하고 1주일간 경험한 장단점을 상세히 파헤쳐줄 크리에이터를 모십니다. 15분 내외의 영상 제작 및 고정 댓글 링크 삽입이 필요합니다.",
-    genre: "테크",
-    region: "서울/수도권",
-    likes: 2450,
-    comments: 312
-  },
-  {
-    id: 2,
-    company: "헬시푸드 코리아",
-    title: "저당 다이어트 식단 패키지 PPL 광고 및 숏츠 브랜디드 광고",
-    category: "뷰티/헬스",
-    budget: "1,800,000",
-    subscribersRequired: "10,000+",
-    status: "승인 완료",
-    clicks: 840,
-    views: 28000,
-    registrations: 190,
-    duration: "2026-05-15 ~ 2026-06-15",
-    description: "맛있게 즐기는 저당 식단 브랜드를 유튜브 숏츠(Shorts) 또는 메인 영상 내 PPL 형태로 소개해 주실 크리에이터를 찾습니다. 직접 시식하고 다이어트 전후 비교 등을 가볍게 브이로그에 녹여주실 분 선호합니다.",
-    genre: "브이로그",
-    region: "전국",
-    likes: 1890,
-    comments: 154
-  },
-  {
-    id: 3,
-    company: "플레이아레나",
-    title: "신작 MMORPG '아스달 사가' 사전등록 및 초반 플레이 리뷰 가이드 캠페인",
-    category: "게임",
-    budget: "6,000,000",
-    subscribersRequired: "100,000+",
-    status: "승인 완료",
-    clicks: 3100,
-    views: 112000,
-    registrations: 980,
-    duration: "2026-05-20 ~ 2026-06-20",
-    description: "올해 최대 기대작인 판타지 MMORPG 게임의 초반 성장 팁, 전직 리뷰, 그리고 매력 요소를 전달하는 동영상 마케팅입니다. 타겟 시청자 연령대가 2030 남성인 크리에이터분들의 많은 지원 바랍니다.",
-    genre: "게임",
-    region: "온라인",
-    likes: 5400,
-    comments: 890
-  },
-  {
-    id: 4,
-    company: "트래블메이트",
-    title: "여름 휴가철 전용 초경량 캐리어 크라우드펀딩 바이럴 홍보 캠페인",
-    category: "일상/여행",
-    budget: "2,200,000",
-    subscribersRequired: "30,000+",
-    status: "승인 대기",
-    clicks: 0,
-    views: 0,
-    registrations: 0,
-    duration: "2026-06-01 ~ 2026-07-01",
-    description: "깨지지 않고 2.1kg에 불과한 신개념 캐리어 크라우드펀딩 오픈 소식을 알리고, 여행지에서 짐을 싸는 현실적인 꿀팁과 함께 제품 노출을 해줄 여행 유튜버를 구합니다.",
-    genre: "여행",
-    region: "전국",
-    likes: 0,
-    comments: 0
-  },
-  {
-    id: 5,
-    company: "쿠킹클래스 랩",
-    title: "[반려 유발] 초간단 밀키트 3종 홈쿡 레시피 대결 콘텐츠 제작 모집",
-    category: "요리/푸드",
-    budget: "2,500,000",
-    subscribersRequired: "50,000+",
-    status: "반려",
-    clicks: 0,
-    views: 0,
-    registrations: 0,
-    duration: "2026-05-01 ~ 2026-05-15",
-    description: "특정 브랜드 푸드 키트를 활용해 5분 만에 레스토랑 퀄리티의 요리를 완성하는 스피드 레시피 대결 테마입니다. (사유: 사행성 요소 및 일부 자극적 표현 시정 요구)",
-    genre: "요리",
-    region: "온라인",
-    likes: 0,
-    comments: 0
-  }
-];
+const INITIAL_ADS = [];
 
 // 2. Charts Data (Ad Analytics)
 const ANALYTICS_TREND = [
@@ -166,61 +75,16 @@ const ANALYTICS_ROI = [
 ];
 
 // 3. Simulated Chat Rooms & Dialogues
-const INITIAL_CHAT_ROOMS = [
-  {
-    id: 1,
-    name: "네오스마트 (김민준 팀장)",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
-    lastMsg: "네, 크리에이터님! 제안해주신 스토리보드 기획안이 아주 만족스럽습니다.",
-    time: "오전 11:20",
-    unread: 2,
-    online: true,
-    messages: [
-      { sender: 'them', text: '안녕하세요! 네오스마트 마케팅팀 김민준 팀장입니다. AI 스마트워치 광고 캠페인 매칭 축하드립니다.', time: '오전 10:15' },
-      { sender: 'me', text: '감사합니다! 제품 강점인 AI 헬스케어 비서 기능을 일상 속 상황극에 녹여보려 하는데 의견이 어떠신가요?', time: '오전 10:30' },
-      { sender: 'them', text: '기존의 뻔한 스펙 설명보다 상황극 형식이 훨씬 몰입도가 높을 것 같아 적극 찬성합니다!', time: '오전 10:45' },
-      { sender: 'me', text: '그럼 상황 시나리오 및 스토리보드 작성해서 오늘 중으로 먼저 보내드리겠습니다.', time: '오전 11:00' },
-      { sender: 'them', text: '네, 크리에이터님! 제안해주신 스토리보드 기획안이 아주 만족스럽습니다.', time: '오전 11:20' }
-    ]
-  },
-  {
-    id: 2,
-    name: "플레이아레나 (이선우 본부장)",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80",
-    lastMsg: "계약서 초안을 업로드 해드렸으니 전자 서명 진행해 주시면 감사하겠습니다.",
-    time: "어제",
-    unread: 0,
-    online: false,
-    messages: [
-      { sender: 'them', text: '안녕하세요 게임 크리에이터님! 신작 MMORPG 리뷰 광고 관련하여 대화 드립니다.', time: '어제 오후 2:00' },
-      { sender: 'me', text: '반갑습니다 본부장님! 사전등록 유입 링크는 영상 본문과 고정댓글 두 곳 모두 적용하면 될까요?', time: '어제 오후 2:15' },
-      { sender: 'them', text: '네, 정확합니다! 추가로 플레이 도중 사용할 수 있는 한정판 쿠폰코드 정보도 함께 삽입될 예정입니다.', time: '어제 오후 2:30' },
-      { sender: 'them', text: '계약서 초안을 업로드 해드렸으니 전자 서명 진행해 주시면 감사하겠습니다.', time: '어제 오후 3:00' }
-    ]
-  }
-];
+const INITIAL_CHAT_ROOMS = [];
 
 // 4. Initial Notifications
-const INITIAL_NOTIFICATIONS = [
-  { id: 1, text: "'네오스마트' 광고 캠페인 매칭이 성사되었습니다. 채팅방에서 협업 논의를 시작하세요.", type: 'match', time: '5분 전', unread: true, roomId: 1 },
-  { id: 2, text: "'플레이아레나' 신작 게임 캠페인 관련 신규 계약서 작성이 완료되었습니다. 서명이 필요합니다.", type: 'contract', time: '1시간 전', unread: true, roomId: 2 },
-  { id: 3, text: "회원님의 포트폴리오 유튜브 구독자 수(124.5K) 동기화가 안전하게 완료되었습니다.", type: 'system', time: '3시간 전', unread: false },
-  { id: 4, text: "지원하신 '다이어트 식단 패키지' 광고주가 회원님의 기획안 조회를 완료했습니다.", type: 'info', time: '어제', unread: false }
-];
+const INITIAL_NOTIFICATIONS = [];
 
 // 5. Admin Reports List
-const INITIAL_REPORTS = [
-  { id: 101, type: "스팸 광고", target: "초고수익 일 보장 (알바 모집 광고)", reporter: "user_creator_09", status: "대기 중", date: "2026-05-21" },
-  { id: 102, type: "욕설/비방 댓글", target: "크리에이터 인신공격 악성 댓글 (캠페인 피드)", reporter: "advertiser_neo", status: "처리 완료", date: "2026-05-20" },
-  { id: 103, type: "부적절 광고물", target: "검증되지 않은 다이어트 보조제 허위 과장 광고", reporter: "user_creator_99", status: "대기 중", date: "2026-05-19" }
-];
+const INITIAL_REPORTS = [];
 
 // 6. Creator Portfolio Sync Info
-const INITIAL_YOUTUBE_VIDEOS = [
-  { id: "v1", title: "구독자 10만이 사용하는 극강의 웰메이드 스마트 생산성 템플릿 리뷰", views: "82,500회", likes: "3,400개", comments: "450개", duration: "12:45", image: "https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=500&auto=format&fit=crop&q=60" },
-  { id: "v2", title: "인디 크리에이터로 살아남기 1년 차 회고와 플랫폼 비즈니스 팁", views: "43,100회", likes: "1,980개", comments: "210개", duration: "18:20", image: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=500&auto=format&fit=crop&q=60" },
-  { id: "v3", title: "내가 2026년에 맥북 에어를 팔고 다시 아이패드 프로로 돌아온 솔직한 이유", views: "128,000회", likes: "5,120개", comments: "620개", duration: "10:14", image: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=500&auto=format&fit=crop&q=60" }
-];
+const INITIAL_YOUTUBE_VIDEOS = [];
 
 /* ==========================================================================
    Main Application Component
@@ -253,14 +117,18 @@ export default function App() {
   // Auth & Role state
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isGuestMode, setIsGuestMode] = useState(false);
+  const [mockOtp, setMockOtp] = useState('');
+  const [googleEmail, setGoogleEmail] = useState('');
+  const [kakaoEmail, setKakaoEmail] = useState('');
+  const [naverEmail, setNaverEmail] = useState('');
   const [authStep, setAuthStep] = useState('landing'); // landing | login | otp | forgot | signup
-  const [authInput, setAuthInput] = useState({ email: 'j-creator@gmail.com', password: 'password123' });
+  const [authInput, setAuthInput] = useState({ email: '', password: '' });
   const [otpCode, setOtpCode] = useState(['', '', '', '', '', '']);
   const [userRole, setUserRole] = useState('creator'); // creator | advertiser | admin
-  const [userName, setUserName] = useState('크리에이터 제이 (J)');
-  const [userEmail, setUserEmail] = useState('j-creator@gmail.com');
-  const [userPhone, setUserPhone] = useState('010-1234-5678');
-  const [userSns, setUserSns] = useState('youtube.com/c/creator_j');
+  const [userName, setUserName] = useState('');
+  const [userEmail, setUserEmail] = useState('');
+  const [userPhone, setUserPhone] = useState('');
+  const [userSns, setUserSns] = useState('');
 
   useEffect(() => {
     if (token) {
@@ -294,33 +162,15 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Dynamic user storage for signup simulation
-  const [registeredUsers, setRegisteredUsers] = useState([
-    {
-      role: 'creator',
-      name: '크리에이터 제이 (J)',
-      email: 'j-creator@gmail.com',
-      password: 'password123',
-      phone: '010-1234-5678',
-      sns: 'youtube.com/c/creator_j'
-    },
-    {
-      role: 'advertiser',
-      name: '네오스마트 (김민준 팀장)',
-      email: 'mj.kim@neosmart.com',
-      password: 'password123',
-      phone: '02-555-9876',
-      sns: 'neosmart.ai'
-    },
-    {
-      role: 'admin',
-      name: '최고 관리자 (Admin)',
-      email: 'admin@ad-connect.com',
-      password: 'password123',
-      phone: '02-1234-5678',
-      sns: 'ad-connect.com/admin'
-    }
-  ]);
+  // Dynamic user storage for signup simulation (persisted in localStorage)
+  const [registeredUsers, setRegisteredUsers] = useState(() => {
+    const saved = localStorage.getItem('registeredUsers');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('registeredUsers', JSON.stringify(registeredUsers));
+  }, [registeredUsers]);
 
   const [signupForm, setSignupForm] = useState({
     role: 'creator',
@@ -866,8 +716,13 @@ export default function App() {
       setUserPhone(foundUser.phone || '미등록');
       setUserSns(foundUser.sns || '미등록');
 
+      // Generate a random 6-digit mock OTP
+      const randomOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      setMockOtp(randomOtp);
+
       setAuthStep('otp');
       addToast("이메일로 6자리 2차 OTP 인증 번호가 발송되었습니다. [모의 모드]", "info");
+      addToast(`[테스트용 OTP] 인증번호는 [${randomOtp}] 입니다.`, "success");
     }
   };
 
@@ -910,6 +765,10 @@ export default function App() {
         addToast("백엔드 서버 통신 중 오류가 발생했습니다.", "error");
       }
     } else {
+      if (fullOtp !== mockOtp) {
+        addToast("OTP 인증번호가 올바르지 않습니다. 다시 입력해 주세요.", "error");
+        return;
+      }
       setIsLoggedIn(true);
       addToast("JWT 기반 사용자 2차 인증 및 보안 로그인이 정상 승인되었습니다. [모의 모드]", "success");
       addToast(`환영합니다! ${userName}님, ${userRole.toUpperCase()} 역할로 입장했습니다.`, "info");
@@ -1014,6 +873,9 @@ export default function App() {
   const handleLogout = () => {
     setIsLoggedIn(false);
     setIsGuestMode(false);
+    setGoogleEmail('');
+    setKakaoEmail('');
+    setNaverEmail('');
     setAuthStep('landing');
     setAuthInput({ email: '', password: '' });
     setOtpCode(['', '', '', '', '', '']);
@@ -1156,6 +1018,7 @@ export default function App() {
         authStep === 'landing' ? (
           <div className="landing-container" style={{
             minHeight: '100vh',
+            width: '100%',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -1354,31 +1217,6 @@ export default function App() {
 
             {authStep === 'login' ? (
               <form onSubmit={handleLoginSubmit} className="contract-form">
-                {/* Role pre-selection */}
-                <div className="form-group">
-                  <label>로그인 권한 역할 선택</label>
-                  <div className="payment-method-selector">
-                    <div 
-                      className={`payment-method-btn ${userRole === 'creator' ? 'active' : ''}`}
-                      onClick={() => handleRoleToggle('creator')}
-                    >
-                      크리에이터
-                    </div>
-                    <div 
-                      className={`payment-method-btn ${userRole === 'advertiser' ? 'active' : ''}`}
-                      onClick={() => handleRoleToggle('advertiser')}
-                    >
-                      광고주
-                    </div>
-                  </div>
-                  <div 
-                    className={`payment-method-btn ${userRole === 'admin' ? 'active' : ''}`}
-                    onClick={() => handleRoleToggle('admin')}
-                    style={{ marginTop: '8px', width: '100%' }}
-                  >
-                    플랫폼 최고 관리자 (Admin)
-                  </div>
-                </div>
 
                 <div className="form-group">
                   <label>이메일 아이디</label>
@@ -1441,15 +1279,15 @@ export default function App() {
                 <div className="divider">소셜 계정 1초 로그인 연동</div>
 
                 <div className="oauth-grid">
-                  <div className="oauth-btn google" onClick={() => { setUserRole('creator'); setIsLoggedIn(true); addToast("Google OAuth 로그인 성공", "success"); }}>
+                  <div className="oauth-btn google" onClick={() => addToast("Google 소셜 로그인은 현재 준비 중입니다. 일반 이메일 로그인을 이용해 주세요.", "warning")}>
                     <span style={{ fontSize: '16px', fontWeight: 'bold' }}>G</span>
                     Google
                   </div>
-                  <div className="oauth-btn kakao" onClick={() => { setUserRole('creator'); setIsLoggedIn(true); addToast("카카오 OAuth 로그인 성공", "success"); }}>
+                  <div className="oauth-btn kakao" onClick={() => addToast("카카오 소셜 로그인은 현재 준비 중입니다. 일반 이메일 로그인을 이용해 주세요.", "warning")}>
                     <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#3c1e1e' }}>K</span>
                     Kakao
                   </div>
-                  <div className="oauth-btn naver" onClick={() => { setUserRole('creator'); setIsLoggedIn(true); addToast("네이버 OAuth 로그인 성공", "success"); }}>
+                  <div className="oauth-btn naver" onClick={() => addToast("네이버 소셜 로그인은 현재 준비 중입니다. 일반 이메일 로그인을 이용해 주세요.", "warning")}>
                     <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#03c75a' }}>N</span>
                     Naver
                   </div>
@@ -1799,26 +1637,7 @@ export default function App() {
                   </div>
                 </div>
               )}
-              <div style={{ marginTop: '8px', display: 'flex', gap: '4px' }}>
-                <button 
-                  onClick={() => handleRoleToggle('creator')} 
-                  style={{ flex: 1, padding: '4px', fontSize: '9px', borderRadius: '4px', background: userRole === 'creator' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: 'white' }}
-                >
-                  크리
-                </button>
-                <button 
-                  onClick={() => handleRoleToggle('advertiser')} 
-                  style={{ flex: 1, padding: '4px', fontSize: '9px', borderRadius: '4px', background: userRole === 'advertiser' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: 'white' }}
-                >
-                  광고
-                </button>
-                <button 
-                  onClick={() => handleRoleToggle('admin')} 
-                  style={{ flex: 1, padding: '4px', fontSize: '9px', borderRadius: '4px', background: userRole === 'admin' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: 'white' }}
-                >
-                  관리
-                </button>
-              </div>
+
             </div>
           </aside>
 
@@ -3102,6 +2921,200 @@ export default function App() {
 
                   {/* Right Column: Danger Zone / Account Withdrawal */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                    
+                    {/* 소셜 계정 연동 관리 */}
+                    <div className="glass-card">
+                      <h3 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <RefreshCw size={20} color="var(--primary)" />
+                        소셜 계정 연동 관리
+                      </h3>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '20px' }}>
+                        구글, 카카오, 네이버 이메일을 연동하여 1초 간편 로그인 및 중요 계약 알림을 수신할 수 있습니다.
+                      </p>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        {/* Google Row */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{ fontSize: '12px', fontWeight: 'bold', background: 'rgba(219, 68, 85, 0.1)', color: '#ea4335', padding: '4px 8px', borderRadius: '4px' }}>Google</span>
+                              {googleEmail ? (
+                                <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{googleEmail}</span>
+                              ) : (
+                                <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>연동되지 않음</span>
+                              )}
+                            </div>
+                            {googleEmail && (
+                              <button 
+                                className="btn btn-secondary" 
+                                style={{ padding: '4px 10px', fontSize: '11px', background: 'rgba(255,255,255,0.02)' }}
+                                onClick={() => {
+                                  if (isGuestMode) {
+                                    addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
+                                    return;
+                                  }
+                                  setGoogleEmail('');
+                                  addToast("Google 계정 연동이 해제되었습니다.", "info");
+                                }}
+                              >
+                                연동 해제
+                              </button>
+                            )}
+                          </div>
+                          {!googleEmail && (
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                              <input 
+                                type="email" 
+                                id="google-link-email"
+                                placeholder="연동할 Google 이메일 입력" 
+                                className="input-control" 
+                                style={{ padding: '6px 12px', fontSize: '12px', flex: 1, minHeight: 'auto' }}
+                              />
+                              <button 
+                                className="btn btn-primary" 
+                                style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
+                                onClick={() => {
+                                  if (isGuestMode) {
+                                    addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
+                                    return;
+                                  }
+                                  const val = document.getElementById('google-link-email').value;
+                                  if (!val || !val.includes('@')) {
+                                    addToast("올바른 이메일 주소를 입력해주세요.", "error");
+                                    return;
+                                  }
+                                  setGoogleEmail(val);
+                                  addToast(`Google 계정이 연동 완료되었습니다. (${val})`, "success");
+                                }}
+                              >
+                                연동하기
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Kakao Row */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{ fontSize: '12px', fontWeight: 'bold', background: 'rgba(250, 225, 0, 0.1)', color: '#fee500', padding: '4px 8px', borderRadius: '4px' }}>Kakao</span>
+                              {kakaoEmail ? (
+                                <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{kakaoEmail}</span>
+                              ) : (
+                                <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>연동되지 않음</span>
+                              )}
+                            </div>
+                            {kakaoEmail && (
+                              <button 
+                                className="btn btn-secondary" 
+                                style={{ padding: '4px 10px', fontSize: '11px', background: 'rgba(255,255,255,0.02)' }}
+                                onClick={() => {
+                                  if (isGuestMode) {
+                                    addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
+                                    return;
+                                  }
+                                  setKakaoEmail('');
+                                  addToast("Kakao 계정 연동이 해제되었습니다.", "info");
+                                }}
+                              >
+                                연동 해제
+                              </button>
+                            )}
+                          </div>
+                          {!kakaoEmail && (
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                              <input 
+                                type="email" 
+                                id="kakao-link-email"
+                                placeholder="연동할 Kakao 이메일 입력" 
+                                className="input-control" 
+                                style={{ padding: '6px 12px', fontSize: '12px', flex: 1, minHeight: 'auto' }}
+                              />
+                              <button 
+                                className="btn btn-primary" 
+                                style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
+                                onClick={() => {
+                                  if (isGuestMode) {
+                                    addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
+                                    return;
+                                  }
+                                  const val = document.getElementById('kakao-link-email').value;
+                                  if (!val || !val.includes('@')) {
+                                    addToast("올바른 이메일 주소를 입력해주세요.", "error");
+                                    return;
+                                  }
+                                  setKakaoEmail(val);
+                                  addToast(`Kakao 계정이 연동 완료되었습니다. (${val})`, "success");
+                                }}
+                              >
+                                연동하기
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Naver Row */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{ fontSize: '12px', fontWeight: 'bold', background: 'rgba(3, 207, 93, 0.1)', color: '#03cf5d', padding: '4px 8px', borderRadius: '4px' }}>Naver</span>
+                              {naverEmail ? (
+                                <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{naverEmail}</span>
+                              ) : (
+                                <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>연동되지 않음</span>
+                              )}
+                            </div>
+                            {naverEmail && (
+                              <button 
+                                className="btn btn-secondary" 
+                                style={{ padding: '4px 10px', fontSize: '11px', background: 'rgba(255,255,255,0.02)' }}
+                                onClick={() => {
+                                  if (isGuestMode) {
+                                    addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
+                                    return;
+                                  }
+                                  setNaverEmail('');
+                                  addToast("Naver 계정 연동이 해제되었습니다.", "info");
+                                }}
+                              >
+                                연동 해제
+                              </button>
+                            )}
+                          </div>
+                          {!naverEmail && (
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                              <input 
+                                type="email" 
+                                id="naver-link-email"
+                                placeholder="연동할 Naver 이메일 입력" 
+                                className="input-control" 
+                                style={{ padding: '6px 12px', fontSize: '12px', flex: 1, minHeight: 'auto' }}
+                              />
+                              <button 
+                                className="btn btn-primary" 
+                                style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
+                                onClick={() => {
+                                  if (isGuestMode) {
+                                    addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
+                                    return;
+                                  }
+                                  const val = document.getElementById('naver-link-email').value;
+                                  if (!val || !val.includes('@')) {
+                                    addToast("올바른 이메일 주소를 입력해주세요.", "error");
+                                    return;
+                                  }
+                                  setNaverEmail(val);
+                                  addToast(`Naver 계정이 연동 완료되었습니다. (${val})`, "success");
+                                }}
+                              >
+                                연동하기
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="glass-card accent-rose">
                       <h3 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)' }}>
                         <AlertTriangle size={20} color="var(--accent)" />

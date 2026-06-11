@@ -7,6 +7,8 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,41 +24,43 @@ public class AuthController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final JavaMailSender mailSender;
+    private final Map<String, String> otpStorage = new java.util.concurrent.ConcurrentHashMap<>();
 
-    // Bootstrapping mock users on startup for smooth QA testing
-    @PostConstruct
-    public void initMockUsers() {
-        if (!userRepository.existsByEmail("j-creator@gmail.com")) {
-            userRepository.save(User.builder()
-                    .email("j-creator@gmail.com")
-                    .password(passwordEncoder.encode("password123"))
-                    .name("크리에이터 제이 (J)")
-                    .role("creator")
-                    .phone("010-1234-5678")
-                    .sns("youtube.com/c/creator_j")
-                    .build());
-        }
-        if (!userRepository.existsByEmail("mj.kim@neosmart.com")) {
-            userRepository.save(User.builder()
-                    .email("mj.kim@neosmart.com")
-                    .password(passwordEncoder.encode("password123"))
-                    .name("네오스마트 (김민준 팀장)")
-                    .role("advertiser")
-                    .phone("02-555-9876")
-                    .sns("neosmart.ai")
-                    .build());
-        }
-        if (!userRepository.existsByEmail("admin@ad-connect.com")) {
-            userRepository.save(User.builder()
-                    .email("admin@ad-connect.com")
-                    .password(passwordEncoder.encode("password123"))
-                    .name("최고 관리자 (Admin)")
-                    .role("admin")
-                    .phone("02-1234-5678")
-                    .sns("ad-connect.com/admin")
-                    .build());
-        }
-    }
+    // Bootstrapping mock users disabled for clean production database
+    // @PostConstruct
+    // public void initMockUsers() {
+    //     if (!userRepository.existsByEmail("j-creator@gmail.com")) {
+    //         userRepository.save(User.builder()
+    //                 .email("j-creator@gmail.com")
+    //                 .password(passwordEncoder.encode("password123"))
+    //                 .name("크리에이터 제이 (J)")
+    //                 .role("creator")
+    //                 .phone("010-1234-5678")
+    //                 .sns("youtube.com/c/creator_j")
+    //                 .build());
+    //     }
+    //     if (!userRepository.existsByEmail("mj.kim@neosmart.com")) {
+    //         userRepository.save(User.builder()
+    //                 .email("mj.kim@neosmart.com")
+    //                 .password(passwordEncoder.encode("password123"))
+    //                 .name("네오스마트 (김민준 팀장)")
+    //                 .role("advertiser")
+    //                 .phone("02-555-9876")
+    //                 .sns("neosmart.ai")
+    //                 .build());
+    //     }
+    //     if (!userRepository.existsByEmail("admin@ad-connect.com")) {
+    //         userRepository.save(User.builder()
+    //                 .email("admin@ad-connect.com")
+    //                 .password(passwordEncoder.encode("password123"))
+    //                 .name("최고 관리자 (Admin)")
+    //                 .role("admin")
+    //                 .phone("02-1234-5678")
+    //                 .sns("ad-connect.com/admin")
+    //                 .build());
+    //     }
+    // }
 
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@RequestBody User userDto) {
@@ -87,7 +91,29 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "등록되지 않은 계정이거나 비밀번호가 일치하지 않습니다."));
         }
 
-        // Send OTP Simulation (2FA step trigger)
+        // Generate random 6-digit OTP
+        String otp = String.format("%06d", new java.util.Random().nextInt(1000000));
+        otpStorage.put(email, otp);
+
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(email);
+            message.setSubject("[AdConnect] 2차 보안 인증 OTP 안내");
+            message.setText("안녕하세요, AdConnect 입니다.\n\n"
+                    + "2차 보안 인증을 위한 OTP 번호는 다음과 같습니다:\n\n"
+                    + "OTP 인증번호: " + otp + "\n\n"
+                    + "화면에 6자리 OTP를 입력해 주시기 바랍니다.\n"
+                    + "본 메일은 발신 전용입니다.\n"
+                    + "감사합니다.");
+            mailSender.send(message);
+        } catch (Exception e) {
+            System.err.println("SMTP 메일 전송 실패: " + e.getMessage());
+            System.out.println("[SMTP 전송 실패 디버그용] 생성된 OTP: " + otp);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "2차 인증 메일 발송 중 오류가 발생했습니다. SMTP 설정을 확인해주세요: " + e.getMessage()));
+        }
+
+        // Send OTP (Without returning otp in the JSON response!)
         return ResponseEntity.ok(Map.of(
                 "message", "이메일로 6자리 2차 OTP 인증 번호가 발송되었습니다.",
                 "email", email,
@@ -103,6 +129,12 @@ public class AuthController {
         if (otp == null || otp.length() < 6) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "올바른 6자리 OTP 인증번호를 입력해 주십시오."));
         }
+
+        String storedOtp = otpStorage.get(email);
+        if (storedOtp == null || !storedOtp.equals(otp)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "OTP 인증번호가 올바르지 않거나 만료되었습니다."));
+        }
+        otpStorage.remove(email); // consume OTP
 
         Optional<User> userOpt = userRepository.findByEmail(email);
         if (userOpt.isEmpty()) {
