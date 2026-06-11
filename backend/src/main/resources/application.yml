@@ -8,9 +8,11 @@ spring:
         format_sql: true
         show_sql: true
 
-resend:
-  api-key: ${RESEND_API_KEY}
-  from: ${RESEND_FROM_EMAIL:onboarding@resend.dev}
+emailjs:
+  service-id: ${EMAILJS_SERVICE_ID}
+  template-id: ${EMAILJS_TEMPLATE_ID}
+  public-key: ${EMAILJS_PUBLIC_KEY}
+  private-key: ${EMAILJS_PRIVATE_KEY}
 
 ---
 spring:

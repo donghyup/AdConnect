@@ -30,11 +30,17 @@ public class AuthController {
     private final JwtTokenProvider jwtTokenProvider;
     private final Map<String, String> otpStorage = new java.util.concurrent.ConcurrentHashMap<>();
 
-    @Value("${resend.api-key}")
-    private String resendApiKey;
+    @Value("${emailjs.service-id}")
+    private String serviceId;
 
-    @Value("${resend.from}")
-    private String resendFrom;
+    @Value("${emailjs.template-id}")
+    private String templateId;
+
+    @Value("${emailjs.public-key}")
+    private String publicKey;
+
+    @Value("${emailjs.private-key}")
+    private String privateKey;
 
     // Bootstrapping mock users disabled for clean production database
     // @PostConstruct
@@ -107,20 +113,18 @@ public class AuthController {
         try {
             HttpClient client = HttpClient.newHttpClient();
             String jsonBody = "{"
-                    + "\"from\":\"" + resendFrom + "\","
-                    + "\"to\":\"" + email + "\","
-                    + "\"subject\":\"[AdConnect] 2차 보안 인증 OTP 안내\","
-                    + "\"html\":\"<p>안녕하세요, AdConnect 입니다.</p>"
-                    + "<p>2차 보안 인증을 위한 OTP 번호는 다음과 같습니다:</p>"
-                    + "<h2 style='color:#4f46e5; letter-spacing:2px;'>" + otp + "</h2>"
-                    + "<p>화면에 6자리 OTP를 입력해 주시기 바랍니다.</p>"
-                    + "<p>본 메일은 발신 전용입니다.</p>"
-                    + "<p>감사합니다.</p>\""
+                    + "\"service_id\":\"" + serviceId + "\","
+                    + "\"template_id\":\"" + templateId + "\","
+                    + "\"user_id\":\"" + publicKey + "\","
+                    + "\"accessToken\":\"" + privateKey + "\","
+                    + "\"template_params\":{"
+                    + "\"to_email\":\"" + email + "\","
+                    + "\"otp_code\":\"" + otp + "\""
+                    + "}"
                     + "}";
 
             HttpRequest apiRequest = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.resend.com/emails"))
-                    .header("Authorization", "Bearer " + resendApiKey)
+                    .uri(URI.create("https://api.emailjs.com/api/v1.0/email/send"))
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(jsonBody, StandardCharsets.UTF_8))
                     .build();
@@ -128,10 +132,10 @@ public class AuthController {
             HttpResponse<String> apiResponse = client.send(apiRequest, HttpResponse.BodyHandlers.ofString());
 
             if (apiResponse.statusCode() >= 300) {
-                throw new RuntimeException("Resend API returned status code " + apiResponse.statusCode() + ": " + apiResponse.body());
+                throw new RuntimeException("EmailJS API returned status code " + apiResponse.statusCode() + ": " + apiResponse.body());
             }
         } catch (Exception e) {
-            System.err.println("Resend 메일 전송 실패: " + e.getMessage());
+            System.err.println("EmailJS 메일 전송 실패: " + e.getMessage());
             System.out.println("[SMTP 전송 실패 디버그용] 생성된 OTP: " + otp);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "2차 인증 메일 발송 중 오류가 발생했습니다. API 설정을 확인해주세요: " + e.getMessage()));
