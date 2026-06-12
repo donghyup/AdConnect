@@ -77,9 +77,8 @@ export default function LoginView({
         <div className="oauth-btn google" onClick={() => {
           const currentOrigin = window.location.origin;
           const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-          if (!clientId || clientId.includes("dummy")) {
-            addToast("[모의 모드] 구글 1초 로그인을 시뮬레이션합니다.", "info");
-            navigate('/oauth/callback?code=mock_google_code&state=google');
+          if (!clientId) {
+            addToast("Google Client ID 환경변수(VITE_GOOGLE_CLIENT_ID)가 설정되지 않았습니다.", "error");
             return;
           }
           window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(currentOrigin + '/oauth/callback')}&response_type=code&scope=email%20profile&state=google`;
@@ -90,9 +89,8 @@ export default function LoginView({
         <div className="oauth-btn kakao" onClick={() => {
           const currentOrigin = window.location.origin;
           const clientId = import.meta.env.VITE_KAKAO_CLIENT_ID;
-          if (!clientId || clientId.includes("dummy")) {
-            addToast("[모의 모드] 카카오 1초 로그인을 시뮬레이션합니다.", "info");
-            navigate('/oauth/callback?code=mock_kakao_code&state=kakao');
+          if (!clientId) {
+            addToast("Kakao Client ID 환경변수(VITE_KAKAO_CLIENT_ID)가 설정되지 않았습니다.", "error");
             return;
           }
           window.location.href = `https://kauth.kakao.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(currentOrigin + '/oauth/callback')}&response_type=code&state=kakao`;
@@ -103,9 +101,8 @@ export default function LoginView({
         <div className="oauth-btn naver" onClick={() => {
           const currentOrigin = window.location.origin;
           const clientId = import.meta.env.VITE_NAVER_CLIENT_ID;
-          if (!clientId || clientId.includes("dummy")) {
-            addToast("[모의 모드] 네이버 1초 로그인을 시뮬레이션합니다.", "info");
-            navigate('/oauth/callback?code=mock_naver_code&state=naver');
+          if (!clientId) {
+            addToast("Naver Client ID 환경변수(VITE_NAVER_CLIENT_ID)가 설정되지 않았습니다.", "error");
             return;
           }
           window.location.href = `https://nid.naver.com/oauth2.0/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(currentOrigin + '/oauth/callback')}&response_type=code&state=naver`;

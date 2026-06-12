@@ -62,14 +62,14 @@ tosspayments:
 # OAuth2 Client Configurations
 oauth2:
   kakao:
-    client-id: ${OAUTH_KAKAO_CLIENT_ID:dummy-kakao-client-id}
-    client-secret: ${OAUTH_KAKAO_CLIENT_SECRET:dummy-kakao-client-secret}
+    client-id: ${OAUTH_KAKAO_CLIENT_ID:218eda3aed92bbb19146250803962b92}
+    client-secret: ${OAUTH_KAKAO_CLIENT_SECRET:ENclaXErVjhbxly0tosKz3WQY99OBoPr}
     redirect-uri: ${OAUTH_KAKAO_REDIRECT_URI:https://ad-connect-six.vercel.app/oauth/callback}
   google:
     client-id: ${OAUTH_GOOGLE_CLIENT_ID:dummy-google-client-id}
     client-secret: ${OAUTH_GOOGLE_CLIENT_SECRET:dummy-google-client-secret}
     redirect-uri: ${OAUTH_GOOGLE_REDIRECT_URI:https://ad-connect-six.vercel.app/oauth/callback}
   naver:
-    client-id: ${OAUTH_NAVER_CLIENT_ID:dummy-naver-client-id}
-    client-secret: ${OAUTH_NAVER_CLIENT_SECRET:dummy-naver-client-secret}
+    client-id: ${OAUTH_NAVER_CLIENT_ID:54Qcumoj7Nyn_j8jXTae}
+    client-secret: ${OAUTH_NAVER_CLIENT_SECRET:qcJBu1rh_z}
     redirect-uri: ${OAUTH_NAVER_REDIRECT_URI:https://ad-connect-six.vercel.app/oauth/callback}
