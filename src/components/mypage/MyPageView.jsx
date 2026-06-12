@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, Lock, RefreshCw, AlertTriangle } from 'lucide-react';
 
 export default function MyPageView({
@@ -30,13 +31,12 @@ export default function MyPageView({
   API_BASE_URL,
   token,
   setToken,
-  setAuthStep,
   setAuthInput,
   setOtpCode,
   setIsLoggedIn,
-  setCurrentView,
   addToast
 }) {
+  const navigate = useNavigate();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
       <div className="glass-card">
@@ -545,12 +545,11 @@ export default function MyPageView({
                           const data = await response.json();
                           if (response.ok) {
                             setIsLoggedIn(false);
-                            setAuthStep('login');
                             setAuthInput({ email: '', password: '' });
                             setOtpCode(['', '', '', '', '', '']);
                             setToken('');
-                            setCurrentView('dashboard');
                             setIsWithdrawModalOpen(false);
+                            navigate('/login');
                             addToast(data.message || "Ad-Connect 회원 탈퇴가 무사히 완료되었습니다.", "warning");
                           } else {
                             addToast(data.message || "회원 탈퇴 실패", "error");
@@ -560,11 +559,10 @@ export default function MyPageView({
                         }
                       } else {
                         setIsLoggedIn(false);
-                        setAuthStep('login');
                         setAuthInput({ email: '', password: '' });
                         setOtpCode(['', '', '', '', '', '']);
-                        setCurrentView('dashboard');
                         setIsWithdrawModalOpen(false);
+                        navigate('/login');
                         addToast("Ad-Connect 회원 탈퇴가 안전하고 무사히 완료되었습니다. 이용해 주셔서 감사합니다. [모의 모드]", "warning");
                       }
                     }}

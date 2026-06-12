@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Check, Send } from 'lucide-react';
 
 export default function ChatView({
@@ -8,12 +9,12 @@ export default function ChatView({
   setActiveChatId,
   ads,
   setPaymentAmount,
-  setCurrentView,
   chatInputText,
   setChatInputText,
   handleSendMessage,
   addToast
 }) {
+  const navigate = useNavigate();
   const activeRoom = chatRooms.find(r => r.id === activeChatId);
 
   return (
@@ -85,7 +86,7 @@ export default function ChatView({
                     if (ad) {
                       setPaymentAmount(ad.budget);
                     }
-                    setCurrentView('contracts');
+                    navigate('/contracts');
                     addToast("연계 계약서 작성 화면으로 이동했습니다.", "success");
                   }}
                 >

@@ -1,10 +1,12 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Mail } from 'lucide-react';
 
 export default function ForgotPasswordView({
-  setAuthStep,
   addToast
 }) {
+  const navigate = useNavigate();
+
   return (
     <div className="contract-form">
       <h3>비밀번호 찾기 / 재설정</h3>
@@ -28,7 +30,7 @@ export default function ForgotPasswordView({
         style={{ width: '100%', marginTop: '12px' }}
         onClick={() => {
           addToast("비밀번호 재설정 보안 이메일이 무사히 발송되었습니다.", "success");
-          setAuthStep('login');
+          navigate('/login');
         }}
       >
         비밀번호 재설정 이메일 발송
@@ -36,7 +38,7 @@ export default function ForgotPasswordView({
       <button 
         className="btn btn-secondary" 
         style={{ width: '100%', marginTop: '8px' }}
-        onClick={() => setAuthStep('login')}
+        onClick={() => navigate('/login')}
       >
         로그인 화면으로 돌아가기
       </button>

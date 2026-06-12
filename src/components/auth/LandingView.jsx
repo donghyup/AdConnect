@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Sun,
   Moon,
@@ -16,10 +17,10 @@ import {
 export default function LandingView({
   theme,
   setTheme,
-  setAuthStep,
   setIsGuestMode,
   addToast
 }) {
+  const navigate = useNavigate();
   return (
     <div className="landing-container" style={{
       minHeight: '100vh',
@@ -112,7 +113,7 @@ export default function LandingView({
           <div style={{ display: 'flex', gap: '16px', marginTop: '32px', width: '100%', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button 
               className="btn btn-primary" 
-              onClick={() => setAuthStep('login')}
+              onClick={() => navigate('/login')}
               style={{ padding: '16px 32px', fontSize: '16px', fontWeight: 'bold', minWidth: '220px', borderRadius: '12px', boxShadow: 'var(--shadow-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer' }}
             >
               로그인 / 회원가입 시작하기

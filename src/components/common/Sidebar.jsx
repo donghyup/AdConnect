@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Megaphone,
   LayoutDashboard,
@@ -13,20 +14,23 @@ import {
 
 export default function Sidebar({
   mobileMenuOpen,
-  currentView,
-  setCurrentView,
   setMobileMenuOpen,
   setShowNotificationPanel,
   userRole,
   isGuestMode,
   setIsGuestMode,
   setIsLoggedIn,
-  setAuthStep,
   userName,
   handleLogout
 }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Extract active view name from pathname (e.g. "/marketplace" -> "marketplace")
+  const currentView = location.pathname.substring(1) || 'dashboard';
+
   const navigateTo = (view) => {
-    setCurrentView(view);
+    navigate('/' + view);
     setShowNotificationPanel(false);
     setMobileMenuOpen(false);
   };
@@ -137,7 +141,7 @@ export default function Sidebar({
               onClick={() => {
                 setIsGuestMode(false);
                 setIsLoggedIn(false);
-                setAuthStep('landing');
+                navigate('/login');
               }}
             >
               로그인

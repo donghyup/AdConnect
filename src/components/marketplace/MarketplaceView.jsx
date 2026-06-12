@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, SlidersHorizontal, Megaphone, AlertTriangle, Play, Download } from 'lucide-react';
 
 export default function MarketplaceView({
@@ -12,7 +13,6 @@ export default function MarketplaceView({
   chatRooms,
   setChatRooms,
   setActiveChatId,
-  setCurrentView,
   searchQuery,
   setSearchQuery,
   filterSubscriber,
@@ -29,6 +29,7 @@ export default function MarketplaceView({
   API_BASE_URL,
   token
 }) {
+  const navigate = useNavigate();
   // Filter & Sort campaign list
   const filteredAds = ads.filter(ad => {
     // Role filter: Admins can see all, Creators/Advertisers see approved/pending accordingly
@@ -277,7 +278,7 @@ export default function MarketplaceView({
                         setChatRooms([newRoom, ...chatRooms]);
                         setActiveChatId(ad.id);
                       }
-                      setCurrentView('chat');
+                      navigate('/chat');
                     }}
                   >
                     캠페인 매칭 지원

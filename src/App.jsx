@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Routes, Route, Navigate, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { ShieldCheck, Sun, Moon, X } from 'lucide-react';
 import { SimpleStompClient } from './utils/stomp';
 
@@ -78,6 +79,9 @@ const INITIAL_YOUTUBE_VIDEOS = [];
    ========================================================================== */
 
 export default function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const currentView = location.pathname.substring(1) || 'dashboard';
   const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 
   // Real-time WebSocket connection state simulation
@@ -117,7 +121,6 @@ export default function App() {
   const [googleEmail, setGoogleEmail] = useState('');
   const [kakaoEmail, setKakaoEmail] = useState('');
   const [naverEmail, setNaverEmail] = useState('');
-  const [authStep, setAuthStep] = useState('landing'); // landing | login | otp | forgot | signup
   const [authInput, setAuthInput] = useState({ email: '', password: '' });
   const [otpCode, setOtpCode] = useState(['', '', '', '', '', '']);
   const [userRole, setUserRole] = useState('creator'); // creator | advertiser | admin
@@ -174,7 +177,6 @@ export default function App() {
   });
 
   // Navigation
-  const [currentView, setCurrentView] = useState('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // My Page form states
@@ -762,7 +764,7 @@ export default function App() {
           const saved = await response.json();
           setAds([saved, ...ads]);
           addToast("신규 광고가 등록되었습니다. 관리자의 승인 대기 중입니다.", "warning");
-          setCurrentView('marketplace');
+          navigate('/marketplace');
         } else {
           addToast("광고 등록 중 오류가 발생했습니다.", "error");
         }
@@ -791,7 +793,7 @@ export default function App() {
 
       setAds([newCampaign, ...ads]);
       addToast("신규 광고가 등록되었습니다. 관리자의 승인 대기 중입니다. [모의 모드]", "warning");
-      setCurrentView('marketplace');
+      navigate('/marketplace');
     }
   };
 
@@ -819,7 +821,7 @@ export default function App() {
         const data = await response.json();
 
         if (response.ok) {
-          setAuthStep('otp');
+          navigate('/otp');
           setUserEmail(authInput.email);
           addToast(data.message || "이메일로 6자리 2차 OTP 인증 번호가 발송되었습니다.", "info");
         } else {
@@ -848,7 +850,7 @@ export default function App() {
       const randomOtp = Math.floor(100000 + Math.random() * 900000).toString();
       setMockOtp(randomOtp);
 
-      setAuthStep('otp');
+      navigate('/otp');
       addToast("이메일로 6자리 2차 OTP 인증 번호가 발송되었습니다. [모의 모드]", "info");
       addToast(`[테스트용 OTP] 인증번호는 [${randomOtp}] 입니다.`, "success");
     }
@@ -949,7 +951,7 @@ export default function App() {
           setAuthInput({ email: signupForm.email, password: signupForm.password });
           setUserRole(signupForm.role);
           addToast(data.message || "회원가입이 완료되었습니다! 가입하신 정보로 바로 로그인하실 수 있습니다.", "success");
-          setAuthStep('login');
+          navigate('/login');
           setSignupForm({
             role: 'creator',
             name: '',
@@ -984,7 +986,7 @@ export default function App() {
       setUserRole(newUser.role);
       
       addToast("회원가입이 완료되었습니다! 가입하신 정보로 바로 로그인하실 수 있습니다. [모의 모드]", "success");
-      setAuthStep('login');
+      navigate('/login');
       
       setSignupForm({
         role: 'creator',
@@ -1004,13 +1006,11 @@ export default function App() {
     setGoogleEmail('');
     setKakaoEmail('');
     setNaverEmail('');
-    setAuthStep('landing');
     setAuthInput({ email: '', password: '' });
     setOtpCode(['', '', '', '', '', '']);
     setToken('');
-    setCurrentView('dashboard');
     setIsOAuthCallbackMode(false);
-    window.history.replaceState({}, document.title, '/');
+    navigate('/');
     addToast("정상적으로 로그아웃되었습니다.", "success");
   };
 
@@ -1021,7 +1021,7 @@ export default function App() {
     setShowNotificationPanel(false);
 
     if (notif.type === 'match' || notif.type === 'chat') {
-      setCurrentView('chat');
+      navigate('/chat');
       if (notif.roomId) {
         setActiveChatId(notif.roomId);
         // Reset unread counts
@@ -1029,7 +1029,7 @@ export default function App() {
       }
       addToast("해당 채팅방으로 연결되었습니다.", "success");
     } else if (notif.type === 'contract') {
-      setCurrentView('contracts');
+      navigate('/contracts');
       addToast("계약서 조회 및 서명 화면으로 이동했습니다.", "success");
     } else {
       addToast("알림 조회가 완료되었습니다.", "info");
@@ -1041,215 +1041,279 @@ export default function App() {
       {/* Toast Alert Notifications */}
       <ToastContainer toasts={toasts} />
 
-      {isInstallMode ? (
-        <InstallView 
-          setIsInstallMode={setIsInstallMode} 
-          addToast={addToast} 
-        />
-      ) : isOAuthCallbackMode && !isLoggedIn ? (
-        <OAuthCallback 
-          API_BASE_URL={API_BASE_URL}
-          setToken={setToken}
-          setUserRole={setUserRole}
-          setUserName={setUserName}
-          setUserEmail={setUserEmail}
-          setUserPhone={setUserPhone}
-          setUserSns={setUserSns}
-          setIsLoggedIn={setIsLoggedIn}
-          setAuthStep={setAuthStep}
-          setCurrentView={setCurrentView}
-          setIsOAuthCallbackMode={setIsOAuthCallbackMode}
-          addToast={addToast}
-        />
-      ) : !isLoggedIn && !isGuestMode ? (
-        authStep === 'landing' ? (
-          <LandingView 
-            theme={theme}
-            setTheme={setTheme}
-            setAuthStep={setAuthStep}
-            setIsGuestMode={setIsGuestMode}
+      <Routes>
+        {/* Unauthenticated Routes */}
+        <Route path="/install" element={
+          <InstallView 
+            setIsInstallMode={setIsInstallMode} 
+            addToast={addToast} 
+          />
+        } />
+        
+        <Route path="/oauth/callback" element={
+          <OAuthCallback 
+            API_BASE_URL={API_BASE_URL}
+            setToken={setToken}
+            setUserRole={setUserRole}
+            setUserName={setUserName}
+            setUserEmail={setUserEmail}
+            setUserPhone={setUserPhone}
+            setUserSns={setUserSns}
+            setIsLoggedIn={setIsLoggedIn}
+            setIsOAuthCallbackMode={setIsOAuthCallbackMode}
             addToast={addToast}
           />
-        ) : (
-          <div className="auth-container" style={{ position: 'relative' }}>
-            <div style={{ position: 'absolute', top: '24px', right: '24px', zIndex: 100 }}>
-              <button 
-                type="button"
-                className="btn-icon" 
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                style={{ width: '44px', height: '44px', borderRadius: '50%', boxShadow: 'var(--shadow-glow)', cursor: 'pointer' }}
-                title={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
-              >
-                {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-              </button>
-            </div>
-            
-            <div className="auth-layout-wrapper">
-              <div className="auth-card glass-card accent-indigo">
-                <div className="auth-header">
-                  <div className="logo-icon">
-                    <ShieldCheck size={20} />
-                  </div>
-                  <h2>AD-CONNECT</h2>
-                  <p>크리에이터 데이터 광고 매칭 플랫폼</p>
-                </div>
+        } />
 
-                {authStep === 'login' && (
-                  <LoginView 
-                    authInput={authInput}
-                    setAuthInput={setAuthInput}
-                    handleLoginSubmit={handleLoginSubmit}
-                    setAuthStep={setAuthStep}
-                    setSignupForm={setSignupForm}
-                    addToast={addToast}
-                  />
-                )}
-
-                {authStep === 'forgot' && (
-                  <ForgotPasswordView 
-                    setAuthStep={setAuthStep}
-                    addToast={addToast}
-                  />
-                )}
-
-                {authStep === 'signup' && (
-                  <SignupView 
-                    signupForm={signupForm}
-                    setSignupForm={setSignupForm}
-                    handleSignupSubmit={handleSignupSubmit}
-                    setAuthStep={setAuthStep}
-                  />
-                )}
-
-                {authStep === 'otp' && (
-                  <OtpVerifyView 
-                    otpCode={otpCode}
-                    setOtpCode={setOtpCode}
-                    handleOtpVerify={handleOtpVerify}
-                    setAuthStep={setAuthStep}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-        )
-      ) : (
-        <>
-          {/* Main Layout */}
-          <Sidebar 
-            mobileMenuOpen={mobileMenuOpen}
-            currentView={currentView}
-            setCurrentView={setCurrentView}
-            setMobileMenuOpen={setMobileMenuOpen}
-            setShowNotificationPanel={setShowNotificationPanel}
-            userRole={userRole}
-            isGuestMode={isGuestMode}
-            setIsGuestMode={setIsGuestMode}
-            setIsLoggedIn={setIsLoggedIn}
-            setAuthStep={setAuthStep}
-            userName={userName}
-            handleLogout={handleLogout}
-          />
-
-          <main className="main-content">
-            <TopHeader 
-              mobileMenuOpen={mobileMenuOpen}
-              setMobileMenuOpen={setMobileMenuOpen}
-              currentView={currentView}
-              wsStatus={wsStatus}
+        {/* Guest/Auth routes */}
+        <Route path="/" element={
+          isLoggedIn || isGuestMode ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <LandingView 
               theme={theme}
               setTheme={setTheme}
-              showNotificationPanel={showNotificationPanel}
-              setShowNotificationPanel={setShowNotificationPanel}
-              notifications={notifications}
-              setNotifications={setNotifications}
-              handleNotificationClick={handleNotificationClick}
+              setIsGuestMode={setIsGuestMode}
               addToast={addToast}
             />
+          )
+        } />
 
-            {currentView === 'dashboard' && (
-              <DashboardView 
-                ads={ads}
-                analyticsTrend={ANALYTICS_TREND}
-                analyticsRoi={ANALYTICS_ROI}
-              />
-            )}
+        {/* Auth Forms Layout Group */}
+        <Route element={
+          isLoggedIn || isGuestMode ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <div className="auth-container" style={{ position: 'relative' }}>
+              <div style={{ position: 'absolute', top: '24px', right: '24px', zIndex: 100 }}>
+                <button 
+                  type="button"
+                  className="btn-icon" 
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  style={{ width: '44px', height: '44px', borderRadius: '50%', boxShadow: 'var(--shadow-glow)', cursor: 'pointer' }}
+                  title={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
+                >
+                  {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+                </button>
+              </div>
+              
+              <div className="auth-layout-wrapper">
+                <div className="auth-card glass-card accent-indigo">
+                  <div className="auth-header">
+                    <div className="logo-icon">
+                      <ShieldCheck size={20} />
+                    </div>
+                    <h2>AD-CONNECT</h2>
+                    <p>크리에이터 데이터 광고 매칭 플랫폼</p>
+                  </div>
+                  <Outlet />
+                </div>
+              </div>
+            </div>
+          )
+        }>
+          <Route path="/login" element={
+            <LoginView 
+              authInput={authInput}
+              setAuthInput={setAuthInput}
+              handleLoginSubmit={handleLoginSubmit}
+              setSignupForm={setSignupForm}
+              addToast={addToast}
+            />
+          } />
+          <Route path="/forgot" element={
+            <ForgotPasswordView 
+              addToast={addToast}
+            />
+          } />
+          <Route path="/signup" element={
+            <SignupView 
+              signupForm={signupForm}
+              setSignupForm={setSignupForm}
+              handleSignupSubmit={handleSignupSubmit}
+            />
+          } />
+          <Route path="/otp" element={
+            <OtpVerifyView 
+              otpCode={otpCode}
+              setOtpCode={setOtpCode}
+              handleOtpVerify={handleOtpVerify}
+            />
+          } />
+        </Route>
 
-            {currentView === 'marketplace' && (
-              <MarketplaceView 
+        {/* Authenticated Dashboard Routes Layout Group */}
+        <Route element={
+          !isLoggedIn && !isGuestMode ? (
+            <Navigate to="/" replace />
+          ) : (
+            <>
+              {/* Main Layout */}
+              <Sidebar 
+                mobileMenuOpen={mobileMenuOpen}
+                setMobileMenuOpen={setMobileMenuOpen}
+                setShowNotificationPanel={setShowNotificationPanel}
                 userRole={userRole}
-                userName={userName}
                 isGuestMode={isGuestMode}
-                ads={ads}
-                setAds={setAds}
-                reports={reports}
-                setReports={setReports}
-                chatRooms={chatRooms}
-                setChatRooms={setChatRooms}
-                setActiveChatId={setActiveChatId}
-                setCurrentView={setCurrentView}
-                searchQuery={searchQuery}
-                setSearchQuery={setSearchQuery}
-                filterSubscriber={filterSubscriber}
-                setFilterSubscriber={setFilterSubscriber}
-                filterBudget={filterBudget}
-                setFilterBudget={setFilterBudget}
-                filterGenre={filterGenre}
-                setFilterGenre={setFilterGenre}
-                sortBy={sortBy}
-                setSortBy={setSortBy}
-                handleAddCampaign={handleAddCampaign}
-                addToast={addToast}
-                isBackendConnected={isBackendConnected}
-                API_BASE_URL={API_BASE_URL}
-                token={token}
-              />
-            )}
-
-            {currentView === 'portfolio' && (
-              <PortfolioView 
+                setIsGuestMode={setIsGuestMode}
+                setIsLoggedIn={setIsLoggedIn}
                 userName={userName}
-                portfolioStats={portfolioStats}
-                handleYoutubeSync={handleYoutubeSync}
-                isSyncingYoutube={isSyncingYoutube}
-                youtubeVideos={youtubeVideos}
+                handleLogout={handleLogout}
               />
-            )}
 
-            {currentView === 'chat' && (
-              <ChatView 
-                chatRooms={chatRooms}
-                setChatRooms={setChatRooms}
-                activeChatId={activeChatId}
-                setActiveChatId={setActiveChatId}
-                ads={ads}
-                setPaymentAmount={setPaymentAmount}
-                setCurrentView={setCurrentView}
-                chatInputText={chatInputText}
-                setChatInputText={setChatInputText}
-                handleSendMessage={handleSendMessage}
-                addToast={addToast}
-              />
-            )}
+              <main className="main-content">
+                <TopHeader 
+                  mobileMenuOpen={mobileMenuOpen}
+                  setMobileMenuOpen={setMobileMenuOpen}
+                  wsStatus={wsStatus}
+                  theme={theme}
+                  setTheme={setTheme}
+                  showNotificationPanel={showNotificationPanel}
+                  setShowNotificationPanel={setShowNotificationPanel}
+                  notifications={notifications}
+                  setNotifications={setNotifications}
+                  handleNotificationClick={handleNotificationClick}
+                  addToast={addToast}
+                />
 
-            {currentView === 'contracts' && (
-              <ContractsView 
-                paymentAmount={paymentAmount}
-                userRole={userRole}
-                isGuestMode={isGuestMode}
-                setShowPaymentModal={setShowPaymentModal}
-                signedContract={signedContract}
-                signatureSaved={signatureSaved}
-                setSignatureSaved={setSignatureSaved}
-                saveSignature={saveSignature}
-                handleContractSubmit={handleContractSubmit}
-                userName={userName}
-                theme={theme}
-                addToast={addToast}
-              />
-            )}
+                <Outlet />
+              </main>
 
-            {currentView === 'admin' && (
+              {/* Toss Payments Gateway Simulator Modal */}
+              {showPaymentModal && (
+                <div className="payment-modal-overlay">
+                  <div className="payment-modal">
+                    <div className="payment-header">
+                      <span className="payment-header-logo">toss payments</span>
+                      <button onClick={() => setShowPaymentModal(false)} style={{ color: 'white', background: 'none', cursor: 'pointer' }}>
+                        <X size={20} />
+                      </button>
+                    </div>
+
+                    <div className="payment-body">
+                      <div className="payment-amount-box">
+                        <span className="payment-amount-label">Ad-Connect 안전 예치 대금 결제</span>
+                        <div className="payment-amount-val">₩{paymentAmount} 원</div>
+                      </div>
+
+                      <div>
+                        <h4 style={{ fontSize: '14px', marginBottom: '8px' }}>결제 수단 선택</h4>
+                        <div className="payment-method-selector">
+                          <div 
+                            className={`payment-method-btn ${paymentMethod === 'card' ? 'active' : ''}`}
+                            onClick={() => setPaymentMethod('card')}
+                          >
+                            신용/체크카드
+                          </div>
+                          <div 
+                            className={`payment-method-btn ${paymentMethod === 'toss' ? 'active' : ''}`}
+                            onClick={() => setPaymentMethod('toss')}
+                          >
+                            토스페이 (TossPay)
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ fontSize: '11px', color: '#64748b', lineHeight: '1.4' }}>
+                        본 결제는 테스트 및 시뮬레이션을 위한 가상 포트원 결제 게이트웨이 창입니다. 실제 대금이 청구되지 않고 플랫폼 안전 계약 체결 검증을 위한 모의 세션으로 동작합니다.
+                      </div>
+
+                      <button 
+                        className="btn btn-primary" 
+                        style={{ width: '100%', padding: '14px', background: '#1f8bfa', boxShadow: 'none' }}
+                        onClick={executePayment}
+                      >
+                        안전 결제하기
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )
+        }>
+          <Route path="/dashboard" element={
+            <DashboardView 
+              ads={ads}
+              analyticsTrend={ANALYTICS_TREND}
+              analyticsRoi={ANALYTICS_ROI}
+            />
+          } />
+
+          <Route path="/marketplace" element={
+            <MarketplaceView 
+              userRole={userRole}
+              userName={userName}
+              isGuestMode={isGuestMode}
+              ads={ads}
+              setAds={setAds}
+              reports={reports}
+              setReports={setReports}
+              chatRooms={chatRooms}
+              setChatRooms={setChatRooms}
+              setActiveChatId={setActiveChatId}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              filterSubscriber={filterSubscriber}
+              setFilterSubscriber={setFilterSubscriber}
+              filterBudget={filterBudget}
+              setFilterBudget={setFilterBudget}
+              filterGenre={filterGenre}
+              setFilterGenre={setFilterGenre}
+              sortBy={sortBy}
+              setSortBy={setSortBy}
+              handleAddCampaign={handleAddCampaign}
+              addToast={addToast}
+              isBackendConnected={isBackendConnected}
+              API_BASE_URL={API_BASE_URL}
+              token={token}
+            />
+          } />
+
+          <Route path="/portfolio" element={
+            <PortfolioView 
+              userName={userName}
+              portfolioStats={portfolioStats}
+              handleYoutubeSync={handleYoutubeSync}
+              isSyncingYoutube={isSyncingYoutube}
+              youtubeVideos={youtubeVideos}
+            />
+          } />
+
+          <Route path="/chat" element={
+            <ChatView 
+              chatRooms={chatRooms}
+              setChatRooms={setChatRooms}
+              activeChatId={activeChatId}
+              setActiveChatId={setActiveChatId}
+              ads={ads}
+              setPaymentAmount={setPaymentAmount}
+              chatInputText={chatInputText}
+              setChatInputText={setChatInputText}
+              handleSendMessage={handleSendMessage}
+              addToast={addToast}
+            />
+          } />
+
+          <Route path="/contracts" element={
+            <ContractsView 
+              paymentAmount={paymentAmount}
+              userRole={userRole}
+              isGuestMode={isGuestMode}
+              setShowPaymentModal={setShowPaymentModal}
+              signedContract={signedContract}
+              signatureSaved={signatureSaved}
+              setSignatureSaved={setSignatureSaved}
+              saveSignature={saveSignature}
+              handleContractSubmit={handleContractSubmit}
+              userName={userName}
+              theme={theme}
+              addToast={addToast}
+            />
+          } />
+
+          <Route path="/admin" element={
+            userRole === 'admin' ? (
               <AdminView 
                 reports={reports}
                 setReports={setReports}
@@ -1261,100 +1325,52 @@ export default function App() {
                 token={token}
                 addToast={addToast}
               />
-            )}
+            ) : (
+              <Navigate to="/dashboard" replace />
+            )
+          } />
 
-            {currentView === 'mypage' && (
-              <MyPageView 
-                userRole={userRole}
-                userName={userName}
-                setUserName={setUserName}
-                userEmail={userEmail}
-                setUserEmail={setUserEmail}
-                userPhone={userPhone}
-                setUserPhone={setUserPhone}
-                userSns={userSns}
-                setUserSns={setUserSns}
-                googleEmail={googleEmail}
-                setGoogleEmail={setGoogleEmail}
-                kakaoEmail={kakaoEmail}
-                setKakaoEmail={setKakaoEmail}
-                naverEmail={naverEmail}
-                setNaverEmail={setNaverEmail}
-                profileForm={profileForm}
-                setProfileForm={setProfileForm}
-                passwordForm={passwordForm}
-                setPasswordForm={setPasswordForm}
-                isWithdrawModalOpen={isWithdrawModalOpen}
-                setIsWithdrawModalOpen={setIsWithdrawModalOpen}
-                withdrawConfirmName={withdrawConfirmName}
-                setWithdrawConfirmName={setWithdrawConfirmName}
-                isGuestMode={isGuestMode}
-                isBackendConnected={isBackendConnected}
-                API_BASE_URL={API_BASE_URL}
-                token={token}
-                setToken={setToken}
-                setAuthStep={setAuthStep}
-                setAuthInput={setAuthInput}
-                setOtpCode={setOtpCode}
-                setIsLoggedIn={setIsLoggedIn}
-                setCurrentView={setCurrentView}
-                addToast={addToast}
-              />
-            )}
-          </main>
+          <Route path="/mypage" element={
+            <MyPageView 
+              userRole={userRole}
+              userName={userName}
+              setUserName={setUserName}
+              userEmail={userEmail}
+              setUserEmail={setUserEmail}
+              userPhone={userPhone}
+              setUserPhone={setUserPhone}
+              userSns={userSns}
+              setUserSns={setUserSns}
+              googleEmail={googleEmail}
+              setGoogleEmail={setGoogleEmail}
+              kakaoEmail={kakaoEmail}
+              setKakaoEmail={setKakaoEmail}
+              naverEmail={naverEmail}
+              setNaverEmail={setNaverEmail}
+              profileForm={profileForm}
+              setProfileForm={setProfileForm}
+              passwordForm={passwordForm}
+              setPasswordForm={setPasswordForm}
+              isWithdrawModalOpen={isWithdrawModalOpen}
+              setIsWithdrawModalOpen={setIsWithdrawModalOpen}
+              withdrawConfirmName={withdrawConfirmName}
+              setWithdrawConfirmName={setWithdrawConfirmName}
+              isGuestMode={isGuestMode}
+              isBackendConnected={isBackendConnected}
+              API_BASE_URL={API_BASE_URL}
+              token={token}
+              setToken={setToken}
+              setAuthInput={setAuthInput}
+              setOtpCode={setOtpCode}
+              setIsLoggedIn={setIsLoggedIn}
+              addToast={addToast}
+            />
+          } />
+        </Route>
 
-          {/* Toss Payments Gateway Simulator Modal */}
-          {showPaymentModal && (
-            <div className="payment-modal-overlay">
-              <div className="payment-modal">
-                <div className="payment-header">
-                  <span className="payment-header-logo">toss payments</span>
-                  <button onClick={() => setShowPaymentModal(false)} style={{ color: 'white', background: 'none', cursor: 'pointer' }}>
-                    <X size={20} />
-                  </button>
-                </div>
-
-                <div className="payment-body">
-                  <div className="payment-amount-box">
-                    <span className="payment-amount-label">Ad-Connect 안전 예치 대금 결제</span>
-                    <div className="payment-amount-val">₩{paymentAmount} 원</div>
-                  </div>
-
-                  <div>
-                    <h4 style={{ fontSize: '14px', marginBottom: '8px' }}>결제 수단 선택</h4>
-                    <div className="payment-method-selector">
-                      <div 
-                        className={`payment-method-btn ${paymentMethod === 'card' ? 'active' : ''}`}
-                        onClick={() => setPaymentMethod('card')}
-                      >
-                        신용/체크카드
-                      </div>
-                      <div 
-                        className={`payment-method-btn ${paymentMethod === 'toss' ? 'active' : ''}`}
-                        onClick={() => setPaymentMethod('toss')}
-                      >
-                        토스페이 (TossPay)
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ fontSize: '11px', color: '#64748b', lineHeight: '1.4' }}>
-                    본 결제는 테스트 및 시뮬레이션을 위한 가상 포트원 결제 게이트웨이 창입니다. 실제 대금이 청구되지 않고 플랫폼 안전 계약 체결 검증을 위한 모의 세션으로 동작합니다.
-                  </div>
-
-                  <button 
-                    className="btn btn-primary" 
-                    style={{ width: '100%', padding: '14px', background: '#1f8bfa', boxShadow: 'none' }}
-                    onClick={executePayment}
-                  >
-                    안전 결제하기
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </>
-      )}
+        {/* Wildcard Catchall */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </div>
   );
 }

@@ -1,14 +1,16 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Mail, Lock } from 'lucide-react';
 
 export default function LoginView({
   authInput,
   setAuthInput,
   handleLoginSubmit,
-  setAuthStep,
   setSignupForm,
   addToast
 }) {
+  const navigate = useNavigate();
+
   return (
     <form onSubmit={handleLoginSubmit} className="contract-form">
       <div className="form-group">
@@ -50,12 +52,11 @@ export default function LoginView({
           아이디 찾기
         </span>
         <span className="auth-link-divider">|</span>
-        <span className="auth-link" onClick={() => setAuthStep('forgot')}>
+        <span className="auth-link" onClick={() => navigate('/forgot')}>
           비밀번호 찾기
         </span>
         <span className="auth-link-divider">|</span>
         <span className="auth-link" onClick={() => {
-          setAuthStep('signup');
           setSignupForm({
             role: 'creator',
             name: '',
@@ -64,6 +65,7 @@ export default function LoginView({
             phone: '',
             sns: ''
           });
+          navigate('/signup');
         }}>
           회원가입
         </span>

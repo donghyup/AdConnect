@@ -1,12 +1,13 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Lock } from 'lucide-react';
 
 export default function OtpVerifyView({
   otpCode,
   setOtpCode,
-  handleOtpVerify,
-  setAuthStep
+  handleOtpVerify
 }) {
+  const navigate = useNavigate();
   return (
     <div className="contract-form" style={{ textAlign: 'center' }}>
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
@@ -51,7 +52,7 @@ export default function OtpVerifyView({
       </div>
 
       <div style={{ display: 'flex', gap: '12px', marginTop: '32px' }}>
-        <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setAuthStep('login')}>
+        <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => navigate('/login')}>
           이전으로
         </button>
         <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleOtpVerify}>

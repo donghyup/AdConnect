@@ -1,10 +1,10 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import { SlidersHorizontal, Sun, Moon, Bell } from 'lucide-react';
 
 export default function TopHeader({
   mobileMenuOpen,
   setMobileMenuOpen,
-  currentView,
   wsStatus,
   theme,
   setTheme,
@@ -15,6 +15,8 @@ export default function TopHeader({
   handleNotificationClick,
   addToast
 }) {
+  const location = useLocation();
+  const currentView = location.pathname.substring(1) || 'dashboard';
   return (
     <div className="top-header">
       <div className="header-left-group" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>

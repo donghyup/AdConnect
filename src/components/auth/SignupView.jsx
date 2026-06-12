@@ -1,12 +1,13 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Mail, Lock } from 'lucide-react';
 
 export default function SignupView({
   signupForm,
   setSignupForm,
-  handleSignupSubmit,
-  setAuthStep
+  handleSignupSubmit
 }) {
+  const navigate = useNavigate();
   return (
     <form onSubmit={handleSignupSubmit} className="contract-form">
       <h3>AD-CONNECT 신규 회원가입</h3>
@@ -102,7 +103,7 @@ export default function SignupView({
           type="button" 
           className="btn btn-secondary" 
           style={{ flex: 1 }}
-          onClick={() => setAuthStep('login')}
+          onClick={() => navigate('/login')}
         >
           이전으로
         </button>
