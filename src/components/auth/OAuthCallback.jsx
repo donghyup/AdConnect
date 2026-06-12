@@ -12,6 +12,7 @@ export default function OAuthCallback({
   setIsLoggedIn,
   setAuthStep,
   setCurrentView,
+  setIsOAuthCallbackMode,
   addToast
 }) {
   useEffect(() => {
@@ -22,6 +23,8 @@ export default function OAuthCallback({
 
     if (!code) {
       addToast("인가 코드가 올바르지 않습니다. 다시 로그인해 주세요.", "error");
+      window.history.replaceState({}, document.title, '/');
+      setIsOAuthCallbackMode(false);
       setAuthStep('login');
       return;
     }
@@ -55,15 +58,20 @@ export default function OAuthCallback({
           addToast(`환영합니다, ${data.name}님!`, "info");
 
           // Reset URL query parameters and redirect to dashboard view
-          window.history.replaceState({}, document.title, window.location.pathname);
+          window.history.replaceState({}, document.title, '/');
+          setIsOAuthCallbackMode(false);
           setCurrentView('dashboard');
         } else {
           addToast(data.message || "소셜 로그인 승인에 실패했습니다.", "error");
+          window.history.replaceState({}, document.title, '/');
+          setIsOAuthCallbackMode(false);
           setAuthStep('login');
         }
       } catch (err) {
         console.error("Social login token exchange error:", err);
         addToast("소셜 로그인 승인 처리 도중 서버 통신 에러가 발생했습니다. API 키 구성을 확인해주세요.", "error");
+        window.history.replaceState({}, document.title, '/');
+        setIsOAuthCallbackMode(false);
         setAuthStep('login');
       }
     };

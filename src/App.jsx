@@ -1009,6 +1009,8 @@ export default function App() {
     setOtpCode(['', '', '', '', '', '']);
     setToken('');
     setCurrentView('dashboard');
+    setIsOAuthCallbackMode(false);
+    window.history.replaceState({}, document.title, '/');
     addToast("정상적으로 로그아웃되었습니다.", "success");
   };
 
@@ -1056,6 +1058,7 @@ export default function App() {
           setIsLoggedIn={setIsLoggedIn}
           setAuthStep={setAuthStep}
           setCurrentView={setCurrentView}
+          setIsOAuthCallbackMode={setIsOAuthCallbackMode}
           addToast={addToast}
         />
       ) : !isLoggedIn && !isGuestMode ? (
