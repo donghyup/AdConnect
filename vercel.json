@@ -3,8 +3,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "cleanUrls": true,
-  "routes": [
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/((?!api/|adconnect-release\\.apk).*|$)", "destination": "/index.html" }
   ]
 }
