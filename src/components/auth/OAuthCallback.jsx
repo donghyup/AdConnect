@@ -17,7 +17,8 @@ export default function OAuthCallback({
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
-    const provider = params.get('provider') || 'google';
+    const stateVal = params.get('state');
+    const provider = stateVal || params.get('provider') || 'google';
 
     if (!code) {
       addToast("인가 코드가 올바르지 않습니다. 다시 로그인해 주세요.", "error");
@@ -35,7 +36,7 @@ export default function OAuthCallback({
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ code })
+          body: JSON.stringify({ code, state: stateVal })
         });
 
         const data = await response.json();

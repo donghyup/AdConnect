@@ -62,6 +62,16 @@ public class AuthController {
     @Value("${oauth2.google.redirect-uri}")
     private String googleRedirectUri;
 
+    @Value("${oauth2.naver.client-id}")
+    private String naverClientId;
+
+    @Value("${oauth2.naver.client-secret}")
+    private String naverClientSecret;
+
+    @Value("${oauth2.naver.redirect-uri}")
+    private String naverRedirectUri;
+
+
     // Bootstrapping mock users disabled for clean production database
     // @PostConstruct
     // public void initMockUsers() {
@@ -355,6 +365,85 @@ public class AuthController {
                     .body(Map.of("message", "카카오 소셜 로그인 연동 처리 중 서버 에러 발생: " + e.getMessage()));
         }
     }
+
+    @PostMapping("/naver")
+    public ResponseEntity<?> naverLogin(@RequestBody Map<String, String> request) {
+        String code = request.get("code");
+        String state = request.get("state");
+        if (state == null) {
+            state = "adconnect12345";
+        }
+        if (code == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "인가 코드가 누락되었습니다."));
+        }
+
+        try {
+            HttpClient client = HttpClient.newHttpClient();
+
+            String tokenUrl = "https://nid.naver.com/oauth2.0/token?grant_type=authorization_code"
+                    + "&client_id=" + naverClientId
+                    + "&client_secret=" + naverClientSecret
+                    + "&code=" + code
+                    + "&state=" + state;
+
+            HttpRequest tokenRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(tokenUrl))
+                    .GET()
+                    .build();
+
+            HttpResponse<String> tokenResponse = client.send(tokenRequest, HttpResponse.BodyHandlers.ofString());
+            if (tokenResponse.statusCode() >= 300) {
+                return ResponseEntity.status(tokenResponse.statusCode())
+                        .body(Map.of("message", "네이버 토큰 획득 실패: " + tokenResponse.body()));
+            }
+
+            String body = tokenResponse.body();
+            String accessToken = extractJsonValue(body, "access_token");
+
+            HttpRequest profileRequest = HttpRequest.newBuilder()
+                    .uri(URI.create("https://openapi.naver.com/v1/nid/me"))
+                    .header("Authorization", "Bearer " + accessToken)
+                    .GET()
+                    .build();
+
+            HttpResponse<String> profileResponse = client.send(profileRequest, HttpResponse.BodyHandlers.ofString());
+            if (profileResponse.statusCode() >= 300) {
+                return ResponseEntity.status(profileResponse.statusCode())
+                        .body(Map.of("message", "네이버 프로필 정보 획득 실패: " + profileResponse.body()));
+            }
+
+            String profileBody = profileResponse.body();
+            String responseObj = extractJsonValue(profileBody, "response");
+            String providerId = extractJsonValue(responseObj, "id");
+            String email = extractJsonValue(responseObj, "email");
+            String name = extractJsonValue(responseObj, "name");
+
+            if (email.isEmpty()) {
+                email = providerId + "@naver.com";
+            }
+            if (name.isEmpty()) {
+                name = "네이버유저_" + (providerId.length() > 5 ? providerId.substring(0, 5) : providerId);
+            }
+
+            User user = userService.getOrCreateSocialUser("naver", providerId, email, name);
+            String token = jwtTokenProvider.createToken(user.getEmail(), user.getRole());
+
+            return ResponseEntity.ok(Map.of(
+                    "token", token,
+                    "role", user.getRole(),
+                    "name", user.getName(),
+                    "email", user.getEmail(),
+                    "phone", user.getPhone(),
+                    "sns", user.getSns(),
+                    "message", "네이버 소셜 로그인 연동이 정상 완료되었습니다."
+            ));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "네이버 소셜 로그인 연동 처리 중 서버 에러 발생: " + e.getMessage()));
+        }
+    }
+
 
     private String extractJsonValue(String json, String key) {
         if (json == null || key == null) return "";

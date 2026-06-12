@@ -69,3 +69,7 @@ oauth2:
     client-id: ${OAUTH_GOOGLE_CLIENT_ID:dummy-google-client-id}
     client-secret: ${OAUTH_GOOGLE_CLIENT_SECRET:dummy-google-client-secret}
     redirect-uri: ${OAUTH_GOOGLE_REDIRECT_URI:https://ad-connect-six.vercel.app/oauth/callback}
+  naver:
+    client-id: ${OAUTH_NAVER_CLIENT_ID:dummy-naver-client-id}
+    client-secret: ${OAUTH_NAVER_CLIENT_SECRET:dummy-naver-client-secret}
+    redirect-uri: ${OAUTH_NAVER_REDIRECT_URI:https://ad-connect-six.vercel.app/oauth/callback}
