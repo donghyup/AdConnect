@@ -64,4 +64,24 @@ public class UserController {
             return ResponseEntity.status(status).body(Map.of("message", e.getMessage()));
         }
     }
+
+    @PostMapping("/social-links")
+    public ResponseEntity<?> updateSocialLinks(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        String provider = request.get("provider");
+        String targetEmail = request.get("targetEmail");
+
+        try {
+            User user = userService.updateSocialLinks(email, provider, targetEmail);
+            return ResponseEntity.ok(Map.of(
+                    "message", "연동 정보가 성공적으로 업데이트되었습니다.",
+                    "googleEmail", user.getGoogleEmail() == null ? "" : user.getGoogleEmail(),
+                    "kakaoEmail", user.getKakaoEmail() == null ? "" : user.getKakaoEmail(),
+                    "naverEmail", user.getNaverEmail() == null ? "" : user.getNaverEmail()
+            ));
+        } catch (IllegalArgumentException e) {
+            HttpStatus status = e.getMessage().contains("찾을 수 없습니다") ? HttpStatus.NOT_FOUND : HttpStatus.BAD_REQUEST;
+            return ResponseEntity.status(status).body(Map.of("message", e.getMessage()));
+        }
+    }
 }

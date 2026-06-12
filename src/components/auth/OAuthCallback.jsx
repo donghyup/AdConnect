@@ -10,6 +10,9 @@ export default function OAuthCallback({
   setUserEmail,
   setUserPhone,
   setUserSns,
+  setGoogleEmail,
+  setKakaoEmail,
+  setNaverEmail,
   setIsLoggedIn,
   setIsOAuthCallbackMode,
   addToast
@@ -53,6 +56,9 @@ export default function OAuthCallback({
           setUserEmail(data.email);
           setUserPhone(data.phone || '미등록');
           setUserSns(data.sns || '미등록');
+          setGoogleEmail(data.googleEmail || '');
+          setKakaoEmail(data.kakaoEmail || '');
+          setNaverEmail(data.naverEmail || '');
           setIsLoggedIn(true);
 
           addToast(`${provider.toUpperCase()} 소셜 로그인이 정상 완료되었습니다!`, "success");

@@ -885,6 +885,9 @@ export default function App() {
           setUserName(data.name);
           setUserPhone(data.phone || '미등록');
           setUserSns(data.sns || '미등록');
+          setGoogleEmail(data.googleEmail || '');
+          setKakaoEmail(data.kakaoEmail || '');
+          setNaverEmail(data.naverEmail || '');
           setIsLoggedIn(true);
           addToast(data.message || "2차 보안 인증 및 로그인이 정상 완료되었습니다.", "success");
           addToast(`환영합니다! ${data.name}님, ${data.role.toUpperCase()} 역할로 입장했습니다.`, "info");
@@ -1059,6 +1062,9 @@ export default function App() {
             setUserEmail={setUserEmail}
             setUserPhone={setUserPhone}
             setUserSns={setUserSns}
+            setGoogleEmail={setGoogleEmail}
+            setKakaoEmail={setKakaoEmail}
+            setNaverEmail={setNaverEmail}
             setIsLoggedIn={setIsLoggedIn}
             setIsOAuthCallbackMode={setIsOAuthCallbackMode}
             addToast={addToast}

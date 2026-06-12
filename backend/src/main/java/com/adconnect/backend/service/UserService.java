@@ -56,6 +56,23 @@ public class UserService {
         userRepository.delete(user);
     }
 
+    public User updateSocialLinks(String email, String provider, String targetEmail) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("사용자 정보를 찾을 수 없습니다."));
+
+        if ("google".equalsIgnoreCase(provider)) {
+            user.setGoogleEmail(targetEmail);
+        } else if ("kakao".equalsIgnoreCase(provider)) {
+            user.setKakaoEmail(targetEmail);
+        } else if ("naver".equalsIgnoreCase(provider)) {
+            user.setNaverEmail(targetEmail);
+        } else {
+            throw new IllegalArgumentException("알 수 없는 연동 제공자입니다: " + provider);
+        }
+
+        return userRepository.save(user);
+    }
+
     public User getOrCreateSocialUser(String provider, String providerId, String email, String name) {
         // 1. Search by provider and providerId
         Optional<User> userOpt = userRepository.findByProviderAndProviderId(provider, providerId);

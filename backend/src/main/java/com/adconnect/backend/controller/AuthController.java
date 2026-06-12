@@ -20,6 +20,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -31,6 +33,7 @@ public class AuthController {
     private final JwtTokenProvider jwtTokenProvider;
     private final UserService userService;
     private final Map<String, String> otpStorage = new java.util.concurrent.ConcurrentHashMap<>();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${emailjs.service-id}")
     private String serviceId;
@@ -209,6 +212,9 @@ public class AuthController {
         response.put("email", user.getEmail());
         response.put("phone", user.getPhone());
         response.put("sns", user.getSns());
+        response.put("googleEmail", user.getGoogleEmail() == null ? "" : user.getGoogleEmail());
+        response.put("kakaoEmail", user.getKakaoEmail() == null ? "" : user.getKakaoEmail());
+        response.put("naverEmail", user.getNaverEmail() == null ? "" : user.getNaverEmail());
         response.put("message", "2차 보안 인증 및 로그인이 정상 완료되었습니다.");
 
         return ResponseEntity.ok(response);
@@ -263,9 +269,10 @@ public class AuthController {
             }
 
             String profileBody = profileResponse.body();
-            String email = extractJsonValue(profileBody, "email");
-            String name = extractJsonValue(profileBody, "name");
-            String providerId = extractJsonValue(profileBody, "id");
+            JsonNode rootNode = objectMapper.readTree(profileBody);
+            String email = rootNode.has("email") ? rootNode.get("email").asText() : "";
+            String name = rootNode.has("name") ? rootNode.get("name").asText() : "";
+            String providerId = rootNode.has("id") ? rootNode.get("id").asText() : "";
 
             User user = userService.getOrCreateSocialUser("google", providerId, email, name);
             String token = jwtTokenProvider.createToken(user.getEmail(), user.getRole());
@@ -277,6 +284,9 @@ public class AuthController {
                     "email", user.getEmail(),
                     "phone", user.getPhone(),
                     "sns", user.getSns(),
+                    "googleEmail", user.getGoogleEmail() == null ? "" : user.getGoogleEmail(),
+                    "kakaoEmail", user.getKakaoEmail() == null ? "" : user.getKakaoEmail(),
+                    "naverEmail", user.getNaverEmail() == null ? "" : user.getNaverEmail(),
                     "message", "구글 소셜 로그인 연동이 정상 완료되었습니다."
             ));
 
@@ -331,20 +341,27 @@ public class AuthController {
             }
 
             String profileBody = profileResponse.body();
-            String providerId = extractJsonValue(profileBody, "id");
-            String email;
-            String name;
+            JsonNode rootNode = objectMapper.readTree(profileBody);
+            String providerId = rootNode.has("id") ? rootNode.get("id").asText() : "";
+            String email = providerId + "@kakao.com";
+            String name = "카카오유저_" + (providerId.length() > 5 ? providerId.substring(0, 5) : providerId);
             
-            try {
-                email = extractJsonValue(extractJsonValue(profileBody, "kakao_account"), "email");
-            } catch (Exception ex) {
-                email = providerId + "@kakao.com";
-            }
-            
-            try {
-                name = extractJsonValue(extractJsonValue(profileBody, "properties"), "nickname");
-            } catch (Exception ex) {
-                name = "카카오유저_" + providerId.substring(0, Math.min(5, providerId.length()));
+            if (rootNode.has("kakao_account")) {
+                JsonNode accountNode = rootNode.get("kakao_account");
+                if (accountNode.has("email")) {
+                    email = accountNode.get("email").asText();
+                }
+                if (accountNode.has("profile")) {
+                    JsonNode profileNode = accountNode.get("profile");
+                    if (profileNode.has("nickname")) {
+                        name = profileNode.get("nickname").asText();
+                    }
+                }
+            } else if (rootNode.has("properties")) {
+                JsonNode propsNode = rootNode.get("properties");
+                if (propsNode.has("nickname")) {
+                    name = propsNode.get("nickname").asText();
+                }
             }
 
             User user = userService.getOrCreateSocialUser("kakao", providerId, email, name);
@@ -357,6 +374,9 @@ public class AuthController {
                     "email", user.getEmail(),
                     "phone", user.getPhone(),
                     "sns", user.getSns(),
+                    "googleEmail", user.getGoogleEmail() == null ? "" : user.getGoogleEmail(),
+                    "kakaoEmail", user.getKakaoEmail() == null ? "" : user.getKakaoEmail(),
+                    "naverEmail", user.getNaverEmail() == null ? "" : user.getNaverEmail(),
                     "message", "카카오 소셜 로그인 연동이 정상 완료되었습니다."
             ));
 
@@ -413,10 +433,17 @@ public class AuthController {
             }
 
             String profileBody = profileResponse.body();
-            String responseObj = extractJsonValue(profileBody, "response");
-            String providerId = extractJsonValue(responseObj, "id");
-            String email = extractJsonValue(responseObj, "email");
-            String name = extractJsonValue(responseObj, "name");
+            JsonNode rootNode = objectMapper.readTree(profileBody);
+            String providerId = "";
+            String email = "";
+            String name = "";
+
+            if (rootNode.has("response")) {
+                JsonNode responseNode = rootNode.get("response");
+                providerId = responseNode.has("id") ? responseNode.get("id").asText() : "";
+                email = responseNode.has("email") ? responseNode.get("email").asText() : "";
+                name = responseNode.has("name") ? responseNode.get("name").asText() : "";
+            }
 
             if (email.isEmpty()) {
                 email = providerId + "@naver.com";
@@ -435,6 +462,9 @@ public class AuthController {
                     "email", user.getEmail(),
                     "phone", user.getPhone(),
                     "sns", user.getSns(),
+                    "googleEmail", user.getGoogleEmail() == null ? "" : user.getGoogleEmail(),
+                    "kakaoEmail", user.getKakaoEmail() == null ? "" : user.getKakaoEmail(),
+                    "naverEmail", user.getNaverEmail() == null ? "" : user.getNaverEmail(),
                     "message", "네이버 소셜 로그인 연동이 정상 완료되었습니다."
             ));
 

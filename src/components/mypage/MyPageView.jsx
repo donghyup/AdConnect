@@ -37,6 +37,52 @@ export default function MyPageView({
   addToast
 }) {
   const navigate = useNavigate();
+
+  const handleSocialLinkUpdate = async (provider, targetEmail, setLocalEmail) => {
+    if (isGuestMode) {
+      addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
+      return;
+    }
+    
+    if (isBackendConnected) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/users/social-links`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            email: userEmail,
+            provider: provider,
+            targetEmail: targetEmail
+          })
+        });
+        
+        const data = await response.json();
+        if (response.ok) {
+          setLocalEmail(targetEmail);
+          if (targetEmail === '') {
+            addToast(`${provider.toUpperCase()} 계정 연동이 해제되었습니다.`, "info");
+          } else {
+            addToast(`${provider.toUpperCase()} 계정이 연동 완료되었습니다. (${targetEmail})`, "success");
+          }
+        } else {
+          addToast(data.message || "연동 설정 변경 실패", "error");
+        }
+      } catch (err) {
+        addToast("백엔드 서버 통신 중 오류가 발생했습니다.", "error");
+      }
+    } else {
+      setLocalEmail(targetEmail);
+      if (targetEmail === '') {
+        addToast(`${provider.toUpperCase()} 계정 연동이 해제되었습니다. [모의 모드]`, "info");
+      } else {
+        addToast(`${provider.toUpperCase()} 계정이 연동 완료되었습니다. (${targetEmail}) [모의 모드]`, "success");
+      }
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
       <div className="glass-card">
@@ -298,12 +344,7 @@ export default function MyPageView({
                       className="btn btn-secondary" 
                       style={{ padding: '4px 10px', fontSize: '11px', background: 'rgba(255,255,255,0.02)' }}
                       onClick={() => {
-                        if (isGuestMode) {
-                          addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                          return;
-                        }
-                        setGoogleEmail('');
-                        addToast("Google 계정 연동이 해제되었습니다.", "info");
+                        handleSocialLinkUpdate('google', '', setGoogleEmail);
                       }}
                     >
                       연동 해제
@@ -323,17 +364,12 @@ export default function MyPageView({
                       className="btn btn-primary" 
                       style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
                       onClick={() => {
-                        if (isGuestMode) {
-                          addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                          return;
-                        }
                         const val = document.getElementById('google-link-email').value;
                         if (!val || !val.includes('@')) {
                           addToast("올바른 이메일 주소를 입력해주세요.", "error");
                           return;
                         }
-                        setGoogleEmail(val);
-                        addToast(`Google 계정이 연동 완료되었습니다. (${val})`, "success");
+                        handleSocialLinkUpdate('google', val, setGoogleEmail);
                       }}
                     >
                       연동하기
@@ -358,12 +394,7 @@ export default function MyPageView({
                       className="btn btn-secondary" 
                       style={{ padding: '4px 10px', fontSize: '11px', background: 'rgba(255,255,255,0.02)' }}
                       onClick={() => {
-                        if (isGuestMode) {
-                          addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                          return;
-                        }
-                        setKakaoEmail('');
-                        addToast("Kakao 계정 연동이 해제되었습니다.", "info");
+                        handleSocialLinkUpdate('kakao', '', setKakaoEmail);
                       }}
                     >
                       연동 해제
@@ -383,17 +414,12 @@ export default function MyPageView({
                       className="btn btn-primary" 
                       style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
                       onClick={() => {
-                        if (isGuestMode) {
-                          addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                          return;
-                        }
                         const val = document.getElementById('kakao-link-email').value;
                         if (!val || !val.includes('@')) {
                           addToast("올바른 이메일 주소를 입력해주세요.", "error");
                           return;
                         }
-                        setKakaoEmail(val);
-                        addToast(`Kakao 계정이 연동 완료되었습니다. (${val})`, "success");
+                        handleSocialLinkUpdate('kakao', val, setKakaoEmail);
                       }}
                     >
                       연동하기
@@ -418,12 +444,7 @@ export default function MyPageView({
                       className="btn btn-secondary" 
                       style={{ padding: '4px 10px', fontSize: '11px', background: 'rgba(255,255,255,0.02)' }}
                       onClick={() => {
-                        if (isGuestMode) {
-                          addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                          return;
-                        }
-                        setNaverEmail('');
-                        addToast("Naver 계정 연동이 해제되었습니다.", "info");
+                        handleSocialLinkUpdate('naver', '', setNaverEmail);
                       }}
                     >
                       연동 해제
@@ -443,17 +464,12 @@ export default function MyPageView({
                       className="btn btn-primary" 
                       style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
                       onClick={() => {
-                        if (isGuestMode) {
-                          addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                          return;
-                        }
                         const val = document.getElementById('naver-link-email').value;
                         if (!val || !val.includes('@')) {
                           addToast("올바른 이메일 주소를 입력해주세요.", "error");
                           return;
                         }
-                        setNaverEmail(val);
-                        addToast(`Naver 계정이 연동 완료되었습니다. (${val})`, "success");
+                        handleSocialLinkUpdate('naver', val, setNaverEmail);
                       }}
                     >
                       연동하기

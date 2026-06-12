@@ -35,4 +35,10 @@ public class User {
     private String provider; // local, google, kakao, naver
 
     private String providerId;
+
+    private String googleEmail;
+
+    private String kakaoEmail;
+
+    private String naverEmail;
 }
