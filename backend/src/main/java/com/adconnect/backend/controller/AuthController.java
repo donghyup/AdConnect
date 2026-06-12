@@ -346,21 +346,23 @@ public class AuthController {
             String email = providerId + "@kakao.com";
             String name = "카카오유저_" + (providerId.length() > 5 ? providerId.substring(0, 5) : providerId);
             
+            if (rootNode.has("properties")) {
+                JsonNode propsNode = rootNode.get("properties");
+                if (propsNode.has("nickname") && !propsNode.get("nickname").isNull()) {
+                    name = propsNode.get("nickname").asText();
+                }
+            }
+
             if (rootNode.has("kakao_account")) {
                 JsonNode accountNode = rootNode.get("kakao_account");
-                if (accountNode.has("email")) {
+                if (accountNode.has("email") && !accountNode.get("email").isNull() && !accountNode.get("email").asText().isEmpty()) {
                     email = accountNode.get("email").asText();
                 }
                 if (accountNode.has("profile")) {
                     JsonNode profileNode = accountNode.get("profile");
-                    if (profileNode.has("nickname")) {
+                    if (profileNode.has("nickname") && !profileNode.get("nickname").isNull() && !profileNode.get("nickname").asText().isEmpty()) {
                         name = profileNode.get("nickname").asText();
                     }
-                }
-            } else if (rootNode.has("properties")) {
-                JsonNode propsNode = rootNode.get("properties");
-                if (propsNode.has("nickname")) {
-                    name = propsNode.get("nickname").asText();
                 }
             }
 
