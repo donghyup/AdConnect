@@ -74,31 +74,36 @@ export default function LoginView({
       <div className="oauth-grid">
         <div className="oauth-btn google" onClick={() => {
           const currentOrigin = window.location.origin;
-          const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "dummy-google-client-id";
-          if (clientId === "dummy-google-client-id") {
-            window.location.href = `${currentOrigin}/oauth/callback?code=mock_code_google&provider=google`;
-          } else {
-            window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(currentOrigin + '/oauth/callback')}&response_type=code&scope=email%20profile`;
+          const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+          if (!clientId) {
+            addToast("Google Client ID 환경변수(VITE_GOOGLE_CLIENT_ID)가 설정되지 않았습니다.", "error");
+            return;
           }
+          window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(currentOrigin + '/oauth/callback')}&response_type=code&scope=email%20profile`;
         }}>
           <span style={{ fontSize: '16px', fontWeight: 'bold' }}>G</span>
           Google
         </div>
         <div className="oauth-btn kakao" onClick={() => {
           const currentOrigin = window.location.origin;
-          const clientId = import.meta.env.VITE_KAKAO_CLIENT_ID || "dummy-kakao-client-id";
-          if (clientId === "dummy-kakao-client-id") {
-            window.location.href = `${currentOrigin}/oauth/callback?code=mock_code_kakao&provider=kakao`;
-          } else {
-            window.location.href = `https://kauth.kakao.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(currentOrigin + '/oauth/callback')}&response_type=code`;
+          const clientId = import.meta.env.VITE_KAKAO_CLIENT_ID;
+          if (!clientId) {
+            addToast("Kakao Client ID 환경변수(VITE_KAKAO_CLIENT_ID)가 설정되지 않았습니다.", "error");
+            return;
           }
+          window.location.href = `https://kauth.kakao.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(currentOrigin + '/oauth/callback')}&response_type=code`;
         }}>
           <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#3c1e1e' }}>K</span>
           Kakao
         </div>
         <div className="oauth-btn naver" onClick={() => {
           const currentOrigin = window.location.origin;
-          window.location.href = `${currentOrigin}/oauth/callback?code=mock_code_naver&provider=naver`;
+          const clientId = import.meta.env.VITE_NAVER_CLIENT_ID;
+          if (!clientId) {
+            addToast("Naver Client ID 환경변수(VITE_NAVER_CLIENT_ID)가 설정되지 않았습니다.", "error");
+            return;
+          }
+          window.location.href = `https://nid.naver.com/oauth2.0/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(currentOrigin + '/oauth/callback')}&response_type=code&state=adconnect12345`;
         }}>
           <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#03c75a' }}>N</span>
           Naver

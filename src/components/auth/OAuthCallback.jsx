@@ -62,29 +62,8 @@ export default function OAuthCallback({
         }
       } catch (err) {
         console.error("Social login token exchange error:", err);
-        addToast("소셜 서버와 통신 도중 오류가 발생했습니다. 데모 모드를 진행합니다.", "warning");
-
-        // Mock Fallback Client Side for robust demoing
-        const mockSocialUser = {
-          token: "mock_social_jwt_token_" + Date.now(),
-          role: provider === 'kakao' ? 'advertiser' : 'creator', // Advertiser for Kakao, Creator for Google
-          name: provider === 'kakao' ? "카카오 광고주 (데모)" : "구글 크리에이터 (데모)",
-          email: provider === 'kakao' ? "social-kakao@kakao.com" : "social-google@gmail.com",
-          phone: "010-9999-8888",
-          sns: provider === 'kakao' ? "kakaocorp.com" : "youtube.com/c/social_google"
-        };
-
-        setToken(mockSocialUser.token);
-        setUserRole(mockSocialUser.role);
-        setUserName(mockSocialUser.name);
-        setUserEmail(mockSocialUser.email);
-        setUserPhone(mockSocialUser.phone);
-        setUserSns(mockSocialUser.sns);
-        setIsLoggedIn(true);
-
-        addToast(`[모의] ${provider.toUpperCase()} 소셜 로그인이 완료되었습니다.`, "success");
-        window.history.replaceState({}, document.title, window.location.pathname);
-        setCurrentView('dashboard');
+        addToast("소셜 로그인 승인 처리 도중 서버 통신 에러가 발생했습니다. API 키 구성을 확인해주세요.", "error");
+        setAuthStep('login');
       }
     };
 
