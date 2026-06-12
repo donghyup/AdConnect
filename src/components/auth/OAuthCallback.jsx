@@ -31,6 +31,31 @@ export default function OAuthCallback({
     }
 
     const exchangeCodeForToken = async () => {
+      if (code.startsWith('mock_')) {
+        setTimeout(() => {
+          let mockName = '게스트';
+          if (provider === 'kakao') mockName = '카카오 유저';
+          if (provider === 'naver') mockName = '네이버 유저';
+          if (provider === 'google') mockName = '구글 유저';
+
+          setToken(`mock_token_${provider}_${Date.now()}`);
+          setUserRole('creator');
+          setUserName(mockName);
+          setUserEmail(`guest@${provider}.com`);
+          setUserPhone('010-0000-0000');
+          setUserSns('미등록');
+          setIsLoggedIn(true);
+
+          addToast(`${provider.toUpperCase()} 소셜 로그인이 정상 완료되었습니다! [모의 모드]`, "success");
+          addToast(`환영합니다, ${mockName}님!`, "info");
+
+          window.history.replaceState({}, document.title, '/');
+          setIsOAuthCallbackMode(false);
+          navigate('/dashboard');
+        }, 800);
+        return;
+      }
+
       try {
         const endpoint = `${API_BASE_URL}/auth/${provider}`;
         console.log(`Exchanging OAuth code for token at endpoint: ${endpoint}`);
