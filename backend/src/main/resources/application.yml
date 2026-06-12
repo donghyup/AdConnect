@@ -58,3 +58,14 @@ jwt:
 # Toss Payments Configuration
 tosspayments:
   secret-key: ${TOSS_SECRET_KEY:test_sk_zXLkKEypN3WQk6Yn1278VJwZgB2d}
+
+# OAuth2 Client Configurations
+oauth2:
+  kakao:
+    client-id: ${OAUTH_KAKAO_CLIENT_ID:dummy-kakao-client-id}
+    client-secret: ${OAUTH_KAKAO_CLIENT_SECRET:dummy-kakao-client-secret}
+    redirect-uri: ${OAUTH_KAKAO_REDIRECT_URI:https://ad-connect-six.vercel.app/oauth/callback}
+  google:
+    client-id: ${OAUTH_GOOGLE_CLIENT_ID:dummy-google-client-id}
+    client-secret: ${OAUTH_GOOGLE_CLIENT_SECRET:dummy-google-client-secret}
+    redirect-uri: ${OAUTH_GOOGLE_REDIRECT_URI:https://ad-connect-six.vercel.app/oauth/callback}

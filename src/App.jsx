@@ -14,6 +14,7 @@ import SignupView from './components/auth/SignupView';
 import ForgotPasswordView from './components/auth/ForgotPasswordView';
 import OtpVerifyView from './components/auth/OtpVerifyView';
 import InstallView from './components/auth/InstallView';
+import OAuthCallback from './components/auth/OAuthCallback';
 
 // Page Views
 import DashboardView from './components/dashboard/DashboardView';
@@ -93,11 +94,15 @@ export default function App() {
 
   // Install Mode state (triggered via ?mode=install search parameter)
   const [isInstallMode, setIsInstallMode] = useState(false);
+  const [isOAuthCallbackMode, setIsOAuthCallbackMode] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('mode') === 'install') {
       setIsInstallMode(true);
+    }
+    if (window.location.pathname.includes('/oauth/callback') || params.has('code')) {
+      setIsOAuthCallbackMode(true);
     }
   }, []);
 
@@ -1038,6 +1043,20 @@ export default function App() {
         <InstallView 
           setIsInstallMode={setIsInstallMode} 
           addToast={addToast} 
+        />
+      ) : isOAuthCallbackMode && !isLoggedIn ? (
+        <OAuthCallback 
+          API_BASE_URL={API_BASE_URL}
+          setToken={setToken}
+          setUserRole={setUserRole}
+          setUserName={setUserName}
+          setUserEmail={setUserEmail}
+          setUserPhone={setUserPhone}
+          setUserSns={setUserSns}
+          setIsLoggedIn={setIsLoggedIn}
+          setAuthStep={setAuthStep}
+          setCurrentView={setCurrentView}
+          addToast={addToast}
         />
       ) : !isLoggedIn && !isGuestMode ? (
         authStep === 'landing' ? (

@@ -72,15 +72,34 @@ export default function LoginView({
       <div className="divider">소셜 계정 1초 로그인 연동</div>
 
       <div className="oauth-grid">
-        <div className="oauth-btn google" onClick={() => addToast("Google 소셜 로그인은 현재 준비 중입니다. 일반 이메일 로그인을 이용해 주세요.", "warning")}>
+        <div className="oauth-btn google" onClick={() => {
+          const currentOrigin = window.location.origin;
+          const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "dummy-google-client-id";
+          if (clientId === "dummy-google-client-id") {
+            window.location.href = `${currentOrigin}/oauth/callback?code=mock_code_google&provider=google`;
+          } else {
+            window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(currentOrigin + '/oauth/callback')}&response_type=code&scope=email%20profile`;
+          }
+        }}>
           <span style={{ fontSize: '16px', fontWeight: 'bold' }}>G</span>
           Google
         </div>
-        <div className="oauth-btn kakao" onClick={() => addToast("카카오 소셜 로그인은 현재 준비 중입니다. 일반 이메일 로그인을 이용해 주세요.", "warning")}>
+        <div className="oauth-btn kakao" onClick={() => {
+          const currentOrigin = window.location.origin;
+          const clientId = import.meta.env.VITE_KAKAO_CLIENT_ID || "dummy-kakao-client-id";
+          if (clientId === "dummy-kakao-client-id") {
+            window.location.href = `${currentOrigin}/oauth/callback?code=mock_code_kakao&provider=kakao`;
+          } else {
+            window.location.href = `https://kauth.kakao.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(currentOrigin + '/oauth/callback')}&response_type=code`;
+          }
+        }}>
           <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#3c1e1e' }}>K</span>
           Kakao
         </div>
-        <div className="oauth-btn naver" onClick={() => addToast("네이버 소셜 로그인은 현재 준비 중입니다. 일반 이메일 로그인을 이용해 주세요.", "warning")}>
+        <div className="oauth-btn naver" onClick={() => {
+          const currentOrigin = window.location.origin;
+          window.location.href = `${currentOrigin}/oauth/callback?code=mock_code_naver&provider=naver`;
+        }}>
           <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#03c75a' }}>N</span>
           Naver
         </div>

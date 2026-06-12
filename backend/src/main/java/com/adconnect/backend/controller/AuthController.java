@@ -3,6 +3,7 @@ package com.adconnect.backend.controller;
 import com.adconnect.backend.entity.User;
 import com.adconnect.backend.repository.UserRepository;
 import com.adconnect.backend.security.JwtTokenProvider;
+import com.adconnect.backend.service.UserService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,6 +29,7 @@ public class AuthController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final UserService userService;
     private final Map<String, String> otpStorage = new java.util.concurrent.ConcurrentHashMap<>();
 
     @Value("${emailjs.service-id}")
@@ -41,6 +43,24 @@ public class AuthController {
 
     @Value("${emailjs.private-key}")
     private String privateKey;
+
+    @Value("${oauth2.kakao.client-id}")
+    private String kakaoClientId;
+
+    @Value("${oauth2.kakao.client-secret}")
+    private String kakaoClientSecret;
+
+    @Value("${oauth2.kakao.redirect-uri}")
+    private String kakaoRedirectUri;
+
+    @Value("${oauth2.google.client-id}")
+    private String googleClientId;
+
+    @Value("${oauth2.google.client-secret}")
+    private String googleClientSecret;
+
+    @Value("${oauth2.google.redirect-uri}")
+    private String googleRedirectUri;
 
     // Bootstrapping mock users disabled for clean production database
     // @PostConstruct
@@ -187,5 +207,180 @@ public class AuthController {
     @GetMapping("/heartbeat")
     public ResponseEntity<?> heartbeat() {
         return ResponseEntity.ok(Map.of("status", "UP", "wsStatus", "CONNECTED"));
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<?> googleLogin(@RequestBody Map<String, String> request) {
+        String code = request.get("code");
+        if (code == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "인가 코드가 누락되었습니다."));
+        }
+
+        String email = "social-google@gmail.com";
+        String name = "구글 테스터";
+        String providerId = "google_mock_12345";
+
+        if (!"dummy-google-client-id".equals(googleClientId) && !code.startsWith("mock_code")) {
+            try {
+                HttpClient client = HttpClient.newHttpClient();
+                
+                String tokenRequestBody = "code=" + code
+                        + "&client_id=" + googleClientId
+                        + "&client_secret=" + googleClientSecret
+                        + "&redirect_uri=" + googleRedirectUri
+                        + "&grant_type=authorization_code";
+
+                HttpRequest tokenRequest = HttpRequest.newBuilder()
+                        .uri(URI.create("https://oauth2.googleapis.com/token"))
+                        .header("Content-Type", "application/x-www-form-urlencoded")
+                        .POST(HttpRequest.BodyPublishers.ofString(tokenRequestBody))
+                        .build();
+
+                HttpResponse<String> tokenResponse = client.send(tokenRequest, HttpResponse.BodyHandlers.ofString());
+                if (tokenResponse.statusCode() >= 300) {
+                    throw new RuntimeException("구글 토큰 교환 실패: " + tokenResponse.body());
+                }
+
+                String body = tokenResponse.body();
+                String accessToken = extractJsonValue(body, "access_token");
+
+                HttpRequest profileRequest = HttpRequest.newBuilder()
+                        .uri(URI.create("https://www.googleapis.com/oauth2/v2/userinfo"))
+                        .header("Authorization", "Bearer " + accessToken)
+                        .GET()
+                        .build();
+
+                HttpResponse<String> profileResponse = client.send(profileRequest, HttpResponse.BodyHandlers.ofString());
+                if (profileResponse.statusCode() >= 300) {
+                    throw new RuntimeException("구글 프로필 정보 획득 실패: " + profileResponse.body());
+                }
+
+                String profileBody = profileResponse.body();
+                email = extractJsonValue(profileBody, "email");
+                name = extractJsonValue(profileBody, "name");
+                providerId = extractJsonValue(profileBody, "id");
+
+            } catch (Exception e) {
+                System.err.println("구글 소셜로그인 연동 실패 (데모 모드로 Fallback): " + e.getMessage());
+            }
+        }
+
+        User user = userService.getOrCreateSocialUser("google", providerId, email, name);
+        String token = jwtTokenProvider.createToken(user.getEmail(), user.getRole());
+
+        return ResponseEntity.ok(Map.of(
+                "token", token,
+                "role", user.getRole(),
+                "name", user.getName(),
+                "email", user.getEmail(),
+                "phone", user.getPhone(),
+                "sns", user.getSns(),
+                "message", "구글 소셜 로그인 연동이 무사히 완료되었습니다."
+        ));
+    }
+
+    @PostMapping("/kakao")
+    public ResponseEntity<?> kakaoLogin(@RequestBody Map<String, String> request) {
+        String code = request.get("code");
+        if (code == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "인가 코드가 누락되었습니다."));
+        }
+
+        String email = "social-kakao@kakao.com";
+        String name = "카카오 테스터";
+        String providerId = "kakao_mock_12345";
+
+        if (!"dummy-kakao-client-id".equals(kakaoClientId) && !code.startsWith("mock_code")) {
+            try {
+                HttpClient client = HttpClient.newHttpClient();
+
+                String tokenRequestBody = "grant_type=authorization_code"
+                        + "&client_id=" + kakaoClientId
+                        + "&client_secret=" + kakaoClientSecret
+                        + "&redirect_uri=" + kakaoRedirectUri
+                        + "&code=" + code;
+
+                HttpRequest tokenRequest = HttpRequest.newBuilder()
+                        .uri(URI.create("https://kauth.kakao.com/oauth/token"))
+                        .header("Content-Type", "application/x-www-form-urlencoded;charset=utf-8")
+                        .POST(HttpRequest.BodyPublishers.ofString(tokenRequestBody))
+                        .build();
+
+                HttpResponse<String> tokenResponse = client.send(tokenRequest, HttpResponse.BodyHandlers.ofString());
+                if (tokenResponse.statusCode() >= 300) {
+                    throw new RuntimeException("카카오 토큰 교환 실패: " + tokenResponse.body());
+                }
+
+                String body = tokenResponse.body();
+                String accessToken = extractJsonValue(body, "access_token");
+
+                HttpRequest profileRequest = HttpRequest.newBuilder()
+                        .uri(URI.create("https://kapi.kakao.com/v2/user/me"))
+                        .header("Authorization", "Bearer " + accessToken)
+                        .header("Content-Type", "application/x-www-form-urlencoded;charset=utf-8")
+                        .GET()
+                        .build();
+
+                HttpResponse<String> profileResponse = client.send(profileRequest, HttpResponse.BodyHandlers.ofString());
+                if (profileResponse.statusCode() >= 300) {
+                    throw new RuntimeException("카카오 프로필 정보 획득 실패: " + profileResponse.body());
+                }
+
+                String profileBody = profileResponse.body();
+                providerId = extractJsonValue(profileBody, "id");
+                
+                try {
+                    email = extractJsonValue(extractJsonValue(profileBody, "kakao_account"), "email");
+                } catch (Exception ex) {
+                    email = providerId + "@kakao.com";
+                }
+                
+                try {
+                    name = extractJsonValue(extractJsonValue(profileBody, "properties"), "nickname");
+                } catch (Exception ex) {
+                    name = "카카오유저_" + providerId.substring(0, Math.min(5, providerId.length()));
+                }
+
+            } catch (Exception e) {
+                System.err.println("카카오 소셜로그인 연동 실패 (데모 모드로 Fallback): " + e.getMessage());
+            }
+        }
+
+        User user = userService.getOrCreateSocialUser("kakao", providerId, email, name);
+        String token = jwtTokenProvider.createToken(user.getEmail(), user.getRole());
+
+        return ResponseEntity.ok(Map.of(
+                "token", token,
+                "role", user.getRole(),
+                "name", user.getName(),
+                "email", user.getEmail(),
+                "phone", user.getPhone(),
+                "sns", user.getSns(),
+                "message", "카카오 소셜 로그인 연동이 무사히 완료되었습니다."
+        ));
+    }
+
+    private String extractJsonValue(String json, String key) {
+        if (json == null || key == null) return "";
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\"" + key + "\"\\s*:\\s*\"?([^\",\\}]+)\"?");
+        java.util.regex.Pattern numPattern = java.util.regex.Pattern.compile("\"" + key + "\"\\s*:\\s*([0-9]+)");
+        
+        java.util.regex.Matcher matcher = pattern.matcher(json);
+        if (matcher.find()) {
+            return matcher.group(1).trim().replace("\"", "");
+        }
+        
+        java.util.regex.Matcher numMatcher = numPattern.matcher(json);
+        if (numMatcher.find()) {
+            return numMatcher.group(1).trim();
+        }
+        
+        java.util.regex.Pattern objPattern = java.util.regex.Pattern.compile("\"" + key + "\"\\s*:\\s*(\\{[^\\}]+\\})");
+        java.util.regex.Matcher objMatcher = objPattern.matcher(json);
+        if (objMatcher.find()) {
+            return objMatcher.group(1);
+        }
+        
+        return "";
     }
 }

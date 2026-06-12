@@ -31,4 +31,8 @@ public class User {
     private String phone;
 
     private String sns;
+
+    private String provider; // local, google, kakao, naver
+
+    private String providerId;
 }
