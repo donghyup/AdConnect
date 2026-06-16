@@ -77,7 +77,10 @@ public class UserService {
         // 1. Search by provider and providerId
         Optional<User> userOpt = userRepository.findByProviderAndProviderId(provider, providerId);
         if (userOpt.isPresent()) {
-            return userOpt.get();
+            User existingUser = userOpt.get();
+            // Backfill the social-link field for users created before this was populated on login
+            applySocialEmail(existingUser, provider, email);
+            return userRepository.save(existingUser);
         }
 
         // 2. Search by email. If already exists (local account), merge oauth mapping
@@ -86,6 +89,7 @@ public class UserService {
             User existingUser = emailUserOpt.get();
             existingUser.setProvider(provider);
             existingUser.setProviderId(providerId);
+            applySocialEmail(existingUser, provider, email);
             return userRepository.save(existingUser);
         }
 
@@ -100,7 +104,22 @@ public class UserService {
                 .phone("미등록")
                 .sns("미등록")
                 .build();
+        applySocialEmail(newUser, provider, email);
 
         return userRepository.save(newUser);
+    }
+
+    // Mark the provider used to log in as a linked social account so My Page reflects it
+    private void applySocialEmail(User user, String provider, String email) {
+        if (email == null || email.isEmpty()) {
+            return;
+        }
+        if ("google".equalsIgnoreCase(provider)) {
+            user.setGoogleEmail(email);
+        } else if ("kakao".equalsIgnoreCase(provider)) {
+            user.setKakaoEmail(email);
+        } else if ("naver".equalsIgnoreCase(provider)) {
+            user.setNaverEmail(email);
+        }
     }
 }
