@@ -384,12 +384,37 @@ export default function App() {
   // Portfolios
   const [youtubeVideos, setYoutubeVideos] = useState(INITIAL_YOUTUBE_VIDEOS);
   const [isSyncingYoutube, setIsSyncingYoutube] = useState(false);
-  const [portfolioStats, setPortfolioStats] = useState({
-    subscribers: "124,500",
-    avgViews: "84,530",
-    successRate: "97.4%",
-    collabCount: "12건"
+  // Real linked YouTube channel (persisted). Null until the user connects their channel.
+  const [youtubeChannel, setYoutubeChannel] = useState(() => {
+    const saved = localStorage.getItem('youtubeChannel');
+    return saved ? JSON.parse(saved) : null;
   });
+  const [portfolioStats, setPortfolioStats] = useState({
+    subscribers: "—",
+    avgViews: "—",
+    successRate: "—",
+    collabCount: "0건"
+  });
+
+  // Persist the linked channel and restore its stats/videos on reload
+  useEffect(() => {
+    if (youtubeChannel) {
+      localStorage.setItem('youtubeChannel', JSON.stringify(youtubeChannel));
+    } else {
+      localStorage.removeItem('youtubeChannel');
+    }
+  }, [youtubeChannel]);
+
+  useEffect(() => {
+    if (youtubeChannel) {
+      setYoutubeVideos(youtubeChannel.videos || []);
+      setPortfolioStats(prev => ({
+        ...prev,
+        subscribers: youtubeChannel.subscribers || '—',
+        avgViews: youtubeChannel.avgViews || '—'
+      }));
+    }
+  }, []);
 
   // Contract & E-Signature Pad
   const [signatureSaved, setSignatureSaved] = useState(false);
@@ -660,31 +685,140 @@ export default function App() {
     addToast("광고 체결 계약 완료! 양 당사자에게 PDF 파일이 이메일 전송되었습니다.", "success");
   };
 
-  // Sync Youtube Portfolio Simulate
-  const handleYoutubeSync = () => {
+  // Convert an ISO-8601 duration (e.g. PT8M52S) into mm:ss / h:mm:ss
+  const formatYoutubeDuration = (iso) => {
+    if (!iso) return '';
+    const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    if (!m) return '';
+    const h = Number(m[1] || 0), mn = Number(m[2] || 0), s = Number(m[3] || 0);
+    const mmPart = h > 0 ? `${h}:${String(mn).padStart(2, '0')}` : String(mn);
+    return `${mmPart}:${String(s).padStart(2, '0')}`;
+  };
+
+  // Link / refresh the user's real YouTube channel via the YouTube Data API v3.
+  // Accepts a channel handle (@name), full URL, or channel ID. When called with no
+  // argument it re-syncs the previously linked channel.
+  const handleYoutubeSync = async (channelInputRaw) => {
+    if (isGuestMode) {
+      addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
+      return;
+    }
+
+    const apiKey = import.meta.env.VITE_YOUTUBE_API_KEY;
+    if (!apiKey) {
+      addToast("YouTube Data API 키(VITE_YOUTUBE_API_KEY)가 설정되지 않았습니다. 채널 연동을 위해 키를 먼저 등록해 주세요.", "error");
+      return;
+    }
+
+    const channelInput = (channelInputRaw && typeof channelInputRaw === 'string' && channelInputRaw.trim())
+      ? channelInputRaw.trim()
+      : (youtubeChannel && youtubeChannel.channelId ? youtubeChannel.channelId : '');
+
+    if (!channelInput) {
+      addToast("연동할 유튜브 채널 주소 또는 핸들(@)을 입력해 주세요.", "warning");
+      return;
+    }
+
     setIsSyncingYoutube(true);
-    addToast("YouTube API 연동을 통한 최신 영상 데이터 가져오는 중...", "info");
-    setTimeout(() => {
-      setIsSyncingYoutube(false);
-      setPortfolioStats({
-        subscribers: "128,700 (▲ 4,200)",
-        avgViews: "92,100 (▲ 7,570)",
-        successRate: "98.2%",
-        collabCount: "13건"
-      });
-      // Append a newly fetched video simulation
-      const newVideo = {
-        id: "v4",
-        title: "[AD-Connect 협업] 다이어트 중 단 거 땡길 때 필수! 0칼로리 저당 에이드 1주일 식단 후기",
-        views: "18,400회",
-        likes: "920개",
-        comments: "140개",
-        duration: "08:52",
-        image: "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=500&auto=format&fit=crop&q=60"
+    addToast("YouTube Data API로 채널 정보를 가져오는 중...", "info");
+
+    try {
+      const base = 'https://www.googleapis.com/youtube/v3';
+
+      const fetchChannel = async (qs) => {
+        const res = await fetch(`${base}/channels?part=snippet,statistics,contentDetails&${qs}&key=${apiKey}`);
+        const json = await res.json();
+        if (json.error) throw new Error(json.error.message || 'YouTube API 오류');
+        return (json.items && json.items.length > 0) ? json.items[0] : null;
       };
-      setYoutubeVideos(prev => [newVideo, ...prev]);
-      addToast("유튜브 채널 구독자수 및 통계 실시간 최신화 완료!", "success");
-    }, 2000);
+
+      // Resolve the input into a channel id or handle
+      let channelData = null;
+      const channelMatch = channelInput.match(/channel\/(UC[\w-]{20,})/);
+      const handleMatch = channelInput.match(/@([\w.\-]+)/);
+      if (channelMatch) {
+        channelData = await fetchChannel(`id=${channelMatch[1]}`);
+      } else if (/^UC[\w-]{20,}$/.test(channelInput)) {
+        channelData = await fetchChannel(`id=${channelInput}`);
+      } else {
+        const handle = (handleMatch ? handleMatch[1] : channelInput.replace(/\/+$/, '').split('/').pop()).replace(/^@/, '');
+        channelData = await fetchChannel(`forHandle=@${handle}`);
+        if (!channelData) channelData = await fetchChannel(`forUsername=${handle}`);
+        if (!channelData) {
+          const sres = await fetch(`${base}/search?part=snippet&type=channel&maxResults=1&q=${encodeURIComponent(handle)}&key=${apiKey}`);
+          const sjson = await sres.json();
+          if (sjson.error) throw new Error(sjson.error.message);
+          const found = sjson.items && sjson.items[0];
+          const foundId = found && (found.id?.channelId || found.snippet?.channelId);
+          if (foundId) channelData = await fetchChannel(`id=${foundId}`);
+        }
+      }
+
+      if (!channelData) {
+        addToast("해당 유튜브 채널을 찾을 수 없습니다. 주소나 핸들(@)을 다시 확인해 주세요.", "error");
+        setIsSyncingYoutube(false);
+        return;
+      }
+
+      const stats = channelData.statistics || {};
+      const snip = channelData.snippet || {};
+      const uploadsPlaylist = channelData.contentDetails?.relatedPlaylists?.uploads;
+
+      // Fetch up to 3 most recent uploads with their stats
+      let videos = [];
+      let avgViews = 0;
+      if (uploadsPlaylist) {
+        const pres = await fetch(`${base}/playlistItems?part=contentDetails&maxResults=3&playlistId=${uploadsPlaylist}&key=${apiKey}`);
+        const pjson = await pres.json();
+        const videoIds = (pjson.items || []).map(it => it.contentDetails?.videoId).filter(Boolean);
+        if (videoIds.length) {
+          const vres = await fetch(`${base}/videos?part=snippet,statistics,contentDetails&id=${videoIds.join(',')}&key=${apiKey}`);
+          const vjson = await vres.json();
+          let sumViews = 0;
+          videos = (vjson.items || []).map(v => {
+            const vs = v.statistics || {};
+            sumViews += Number(vs.viewCount || 0);
+            return {
+              id: v.id,
+              title: v.snippet.title,
+              views: `${Number(vs.viewCount || 0).toLocaleString('ko-KR')}회`,
+              likes: `${Number(vs.likeCount || 0).toLocaleString('ko-KR')}개`,
+              comments: `${Number(vs.commentCount || 0).toLocaleString('ko-KR')}개`,
+              duration: formatYoutubeDuration(v.contentDetails?.duration),
+              image: v.snippet.thumbnails?.medium?.url || v.snippet.thumbnails?.default?.url
+            };
+          });
+          if (videos.length) avgViews = Math.round(sumViews / videos.length);
+        }
+      }
+
+      const subscribers = Number(stats.subscriberCount || 0).toLocaleString('ko-KR');
+      const avgViewsStr = (avgViews > 0
+        ? avgViews
+        : Math.round(Number(stats.viewCount || 0) / Math.max(Number(stats.videoCount || 1), 1))
+      ).toLocaleString('ko-KR');
+
+      const linked = {
+        channelId: channelData.id,
+        title: snip.title,
+        thumbnail: snip.thumbnails?.medium?.url || snip.thumbnails?.default?.url,
+        customUrl: snip.customUrl || (handleMatch ? `@${handleMatch[1]}` : ''),
+        description: snip.description || '',
+        subscribers,
+        avgViews: avgViewsStr,
+        videos
+      };
+
+      setYoutubeChannel(linked);
+      setYoutubeVideos(videos);
+      setPortfolioStats(prev => ({ ...prev, subscribers, avgViews: avgViewsStr }));
+
+      addToast(`'${snip.title}' 채널이 연동되었습니다! 구독자 ${subscribers}명`, "success");
+    } catch (err) {
+      addToast(`유튜브 채널 연동 실패: ${err.message}`, "error");
+    } finally {
+      setIsSyncingYoutube(false);
+    }
   };
 
   // Toss Payments Complete
@@ -1009,6 +1143,9 @@ export default function App() {
     setGoogleEmail('');
     setKakaoEmail('');
     setNaverEmail('');
+    setYoutubeChannel(null);
+    setYoutubeVideos([]);
+    setPortfolioStats(prev => ({ ...prev, subscribers: '—', avgViews: '—' }));
     setAuthInput({ email: '', password: '' });
     setOtpCode(['', '', '', '', '', '']);
     setToken('');
@@ -1277,12 +1414,14 @@ export default function App() {
           } />
 
           <Route path="/portfolio" element={
-            <PortfolioView 
+            <PortfolioView
               userName={userName}
+              userEmail={userEmail}
               portfolioStats={portfolioStats}
               handleYoutubeSync={handleYoutubeSync}
               isSyncingYoutube={isSyncingYoutube}
               youtubeVideos={youtubeVideos}
+              youtubeChannel={youtubeChannel}
             />
           } />
 
