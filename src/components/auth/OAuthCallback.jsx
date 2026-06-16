@@ -92,7 +92,11 @@ export default function OAuthCallback({
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: '400px',
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100vw',
+      height: '100vh',
       color: 'white',
       gap: '16px'
     }}>
