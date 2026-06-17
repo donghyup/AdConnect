@@ -93,6 +93,17 @@ public class UserService {
             return userRepository.save(existingUser);
         }
 
+        // 2.5 Account linking: this social email may already be linked to another
+        // account from My Page (e.g. a Kakao-primary user linked this Google/Naver
+        // address). Logging in with it should resolve to that same account so all
+        // linked providers stay connected — rather than creating a duplicate user.
+        Optional<User> linkedUserOpt = findByLinkedSocialEmail(provider, email);
+        if (linkedUserOpt.isPresent()) {
+            User linkedUser = linkedUserOpt.get();
+            applySocialEmail(linkedUser, provider, email);
+            return userRepository.save(linkedUser);
+        }
+
         // 3. Create a new social user with mock password (default role: creator)
         User newUser = User.builder()
                 .email(email)
@@ -107,6 +118,22 @@ public class UserService {
         applySocialEmail(newUser, provider, email);
 
         return userRepository.save(newUser);
+    }
+
+    // Find an existing account that has this social email linked from My Page,
+    // so a login via that provider resolves to the already-linked account.
+    private Optional<User> findByLinkedSocialEmail(String provider, String email) {
+        if (email == null || email.isEmpty()) {
+            return Optional.empty();
+        }
+        if ("google".equalsIgnoreCase(provider)) {
+            return userRepository.findByGoogleEmail(email);
+        } else if ("kakao".equalsIgnoreCase(provider)) {
+            return userRepository.findByKakaoEmail(email);
+        } else if ("naver".equalsIgnoreCase(provider)) {
+            return userRepository.findByNaverEmail(email);
+        }
+        return Optional.empty();
     }
 
     // Mark the provider used to log in as a linked social account so My Page reflects it
