@@ -6,6 +6,7 @@ export default function MarketplaceView({
   userRole,
   userName,
   userEmail,
+  youtubeChannel,
   isGuestMode,
   ads,
   setAds,
@@ -78,10 +79,39 @@ export default function MarketplaceView({
   const statusBadgeClass = (status) =>
     status === '수락' ? 'badge-emerald' : status === '거절' ? 'badge-rose' : 'badge-warning';
 
+  // Data-driven matching: compare the creator's linked YouTube subscriber count
+  // against a campaign's required minimum (e.g. "50,000+").
+  const parseSubCount = (s) => {
+    if (!s) return 0;
+    const n = parseInt(String(s).replace(/[^0-9]/g, ''), 10);
+    return isNaN(n) ? 0 : n;
+  };
+  const mySubscribers = youtubeChannel ? parseSubCount(youtubeChannel.subscribers) : null;
+
+  // Returns { state: 'ok' | 'short' | 'nolink', required, mine }
+  const checkEligibility = (ad) => {
+    const required = parseSubCount(ad.subscribersRequired);
+    if (mySubscribers === null) return { state: 'nolink', required, mine: 0 };
+    if (mySubscribers >= required) return { state: 'ok', required, mine: mySubscribers };
+    return { state: 'short', required, mine: mySubscribers };
+  };
+
   // Creator applies to a campaign -> persist to backend, then open the chat room
   const handleApply = async (ad) => {
     if (isGuestMode) {
       addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
+      return;
+    }
+
+    // Data-driven eligibility gate: must have a linked channel that meets the
+    // campaign's required subscriber count before applying.
+    const elig = checkEligibility(ad);
+    if (elig.state === 'nolink') {
+      addToast("먼저 '유튜브 포트폴리오'에서 채널을 연동해야 지원할 수 있습니다.", "warning");
+      return;
+    }
+    if (elig.state === 'short') {
+      addToast(`이 캠페인은 구독자 ${elig.required.toLocaleString('ko-KR')}명 이상이 필요합니다. (현재 ${elig.mine.toLocaleString('ko-KR')}명)`, "error");
       return;
     }
 
@@ -98,7 +128,7 @@ export default function MarketplaceView({
             campaignId: ad.id,
             partnerEmail: userEmail,
             partnerName: userName,
-            message: `${userName} 크리에이터가 '${ad.title}' 캠페인에 지원했습니다.`
+            message: `${userName} 크리에이터(구독자 ${elig.mine.toLocaleString('ko-KR')}명)가 '${ad.title}' 캠페인에 지원했습니다.`
           })
         });
         if (!res.ok) {
@@ -476,15 +506,23 @@ export default function MarketplaceView({
                 <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{ad.duration}</span>
                 
                 {/* Interactions based on role */}
-                {userRole === 'creator' && ad.status === '승인 완료' && (
-                  <button
-                    className="btn btn-primary"
-                    style={{ padding: '8px 16px', fontSize: '12px' }}
-                    onClick={() => handleApply(ad)}
-                  >
-                    캠페인 매칭 지원
-                  </button>
-                )}
+                {userRole === 'creator' && ad.status === '승인 완료' && (() => {
+                  const elig = checkEligibility(ad);
+                  return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span className={`badge ${elig.state === 'ok' ? 'badge-emerald' : elig.state === 'short' ? 'badge-rose' : 'badge-warning'}`} style={{ fontSize: '10px' }}>
+                        {elig.state === 'ok' ? '✓ 자격 충족' : elig.state === 'short' ? `구독자 미달 (${elig.required.toLocaleString('ko-KR')}+ 필요)` : '채널 연동 필요'}
+                      </span>
+                      <button
+                        className="btn btn-primary"
+                        style={{ padding: '8px 16px', fontSize: '12px', opacity: elig.state === 'ok' ? 1 : 0.6 }}
+                        onClick={() => handleApply(ad)}
+                      >
+                        캠페인 매칭 지원
+                      </button>
+                    </div>
+                  );
+                })()}
 
                 {/* Advertiser: view applicants for their own campaign */}
                 {userRole === 'advertiser' && ad.company === userName && (

@@ -1431,6 +1431,7 @@ export default function App() {
               userRole={userRole}
               userName={userName}
               userEmail={userEmail}
+              youtubeChannel={youtubeChannel}
               isGuestMode={isGuestMode}
               ads={ads}
               setAds={setAds}
