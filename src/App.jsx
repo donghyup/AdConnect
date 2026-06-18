@@ -457,17 +457,6 @@ export default function App() {
     const saved = localStorage.getItem('youtubeChannel');
     return saved ? JSON.parse(saved) : null;
   });
-  // Per-user channel-ownership verification code. Must appear in the channel's
-  // description before linking is allowed — this proves the user owns the channel
-  // (only the owner can edit the description), blocking impersonation.
-  const [youtubeVerifyCode] = useState(() => {
-    let c = localStorage.getItem('youtubeVerifyCode');
-    if (!c) {
-      c = 'adconnect-verify-' + Math.random().toString(36).slice(2, 8).toUpperCase();
-      localStorage.setItem('youtubeVerifyCode', c);
-    }
-    return c;
-  });
   const [portfolioStats, setPortfolioStats] = useState({
     subscribers: "—",
     avgViews: "—",
@@ -824,6 +813,115 @@ export default function App() {
     const h = Number(m[1] || 0), mn = Number(m[2] || 0), s = Number(m[3] || 0);
     const mmPart = h > 0 ? `${h}:${String(mn).padStart(2, '0')}` : String(mn);
     return `${mmPart}:${String(s).padStart(2, '0')}`;
+  };
+
+  // --- Google OAuth based channel ownership verification ---
+  // The user authenticates with Google (youtube.readonly) and we fetch ONLY their
+  // own channel via mine=true. This proves ownership (no handle typing, no codes)
+  // and blocks impersonation.
+  const linkOwnChannel = async (accessToken) => {
+    setIsSyncingYoutube(true);
+    addToast("Google 인증으로 내 채널 정보를 가져오는 중...", "info");
+    try {
+      const base = 'https://www.googleapis.com/youtube/v3';
+      const auth = { headers: { Authorization: `Bearer ${accessToken}` } };
+
+      const cres = await fetch(`${base}/channels?part=snippet,statistics,contentDetails&mine=true`, auth);
+      const cjson = await cres.json();
+      if (cjson.error) throw new Error(cjson.error.message || 'YouTube API 오류');
+      const channelData = cjson.items && cjson.items[0];
+      if (!channelData) {
+        addToast("이 Google 계정에 연결된 유튜브 채널이 없습니다.", "error");
+        setIsSyncingYoutube(false);
+        return;
+      }
+
+      const stats = channelData.statistics || {};
+      const snip = channelData.snippet || {};
+      const uploadsPlaylist = channelData.contentDetails?.relatedPlaylists?.uploads;
+
+      let videos = [];
+      let avgViews = 0;
+      if (uploadsPlaylist) {
+        const pres = await fetch(`${base}/playlistItems?part=contentDetails&maxResults=3&playlistId=${uploadsPlaylist}`, auth);
+        const pjson = await pres.json();
+        const videoIds = (pjson.items || []).map(it => it.contentDetails?.videoId).filter(Boolean);
+        if (videoIds.length) {
+          const vres = await fetch(`${base}/videos?part=snippet,statistics,contentDetails&id=${videoIds.join(',')}`, auth);
+          const vjson = await vres.json();
+          let sumViews = 0;
+          videos = (vjson.items || []).map(v => {
+            const vs = v.statistics || {};
+            sumViews += Number(vs.viewCount || 0);
+            return {
+              id: v.id,
+              title: v.snippet.title,
+              views: `${Number(vs.viewCount || 0).toLocaleString('ko-KR')}회`,
+              likes: `${Number(vs.likeCount || 0).toLocaleString('ko-KR')}개`,
+              comments: `${Number(vs.commentCount || 0).toLocaleString('ko-KR')}개`,
+              duration: formatYoutubeDuration(v.contentDetails?.duration),
+              image: v.snippet.thumbnails?.medium?.url || v.snippet.thumbnails?.default?.url
+            };
+          });
+          if (videos.length) avgViews = Math.round(sumViews / videos.length);
+        }
+      }
+
+      const subscribers = Number(stats.subscriberCount || 0).toLocaleString('ko-KR');
+      const avgViewsStr = (avgViews > 0
+        ? avgViews
+        : Math.round(Number(stats.viewCount || 0) / Math.max(Number(stats.videoCount || 1), 1))
+      ).toLocaleString('ko-KR');
+
+      const linked = {
+        channelId: channelData.id,
+        title: snip.title,
+        thumbnail: snip.thumbnails?.medium?.url || snip.thumbnails?.default?.url,
+        customUrl: snip.customUrl || '',
+        description: snip.description || '',
+        subscribers,
+        avgViews: avgViewsStr,
+        verified: true,
+        videos
+      };
+
+      setYoutubeChannel(linked);
+      setYoutubeVideos(videos);
+      setPortfolioStats(prev => ({ ...prev, subscribers, avgViews: avgViewsStr }));
+      addToast(`'${snip.title}' 채널이 Google 소유권 인증으로 연동되었습니다! 구독자 ${subscribers}명`, "success");
+    } catch (err) {
+      addToast(`채널 인증 실패: ${err.message}`, "error");
+    } finally {
+      setIsSyncingYoutube(false);
+    }
+  };
+
+  const handleYoutubeOAuthVerify = () => {
+    if (isGuestMode) {
+      addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
+      return;
+    }
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      addToast("Google 클라이언트 ID(VITE_GOOGLE_CLIENT_ID)가 설정되지 않았습니다.", "error");
+      return;
+    }
+    if (!(window.google && window.google.accounts && window.google.accounts.oauth2)) {
+      addToast("Google 인증 모듈이 아직 로드되지 않았습니다. 잠시 후 다시 시도해 주세요.", "error");
+      return;
+    }
+    const tokenClient = window.google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: 'https://www.googleapis.com/auth/youtube.readonly',
+      callback: (resp) => {
+        if (resp.error || !resp.access_token) {
+          addToast("Google 채널 인증이 취소되었습니다.", "warning");
+          return;
+        }
+        linkOwnChannel(resp.access_token);
+      },
+    });
+    tokenClient.requestAccessToken();
   };
 
   // Link / refresh the user's real YouTube channel via the YouTube Data API v3.
@@ -1602,11 +1700,10 @@ export default function App() {
               userName={userName}
               userEmail={userEmail}
               portfolioStats={portfolioStats}
-              handleYoutubeSync={handleYoutubeSync}
+              handleYoutubeOAuthVerify={handleYoutubeOAuthVerify}
               isSyncingYoutube={isSyncingYoutube}
               youtubeVideos={youtubeVideos}
               youtubeChannel={youtubeChannel}
-              youtubeVerifyCode={youtubeVerifyCode}
             />
           } />
 

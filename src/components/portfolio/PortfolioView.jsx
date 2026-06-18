@@ -1,21 +1,19 @@
-import React, { useState } from 'react';
-import { RefreshCw, Play, PlayCircle, Link2 } from 'lucide-react';
+import React from 'react';
+import { RefreshCw, Play, PlayCircle, ShieldCheck } from 'lucide-react';
 
 export default function PortfolioView({
   userName,
   userEmail,
   portfolioStats,
-  handleYoutubeSync,
+  handleYoutubeOAuthVerify,
   isSyncingYoutube,
   youtubeVideos,
-  youtubeChannel,
-  youtubeVerifyCode
+  youtubeChannel
 }) {
-  const [channelInput, setChannelInput] = useState('');
   const isLinked = !!youtubeChannel;
 
   const onConnect = () => {
-    handleYoutubeSync(channelInput);
+    handleYoutubeOAuthVerify();
   };
 
   return (
@@ -75,55 +73,17 @@ export default function PortfolioView({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-            <PlayCircle size={18} style={{ color: '#ff0000' }} />
+            <ShieldCheck size={18} style={{ color: 'var(--secondary)' }} />
             <strong style={{ fontSize: '14px' }}>
-              {isLinked ? '내 유튜브 채널' : '내 유튜브 채널 연동하기'}
+              {isLinked ? '내 유튜브 채널 (소유권 인증됨)' : 'Google 계정으로 내 채널 인증하기'}
             </strong>
           </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '12px' }}>
-            채널 핸들(@아이디) 또는 채널 주소(youtube.com/...)를 입력하면 YouTube Data API를 통해 실제 데이터를 가져옵니다.
+          <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '12px', lineHeight: 1.5 }}>
+            {isLinked
+              ? 'Google 인증으로 연동된 본인 채널입니다. 통계를 다시 불러오려면 갱신을 눌러 주세요.'
+              : '버튼을 누르면 Google 로그인 후 본인 소유의 채널만 자동으로 연동됩니다. 타인 채널 도용이 원천 차단됩니다. (입력·코드 불필요)'}
           </p>
-
-          {!isLinked && youtubeVerifyCode && (
-            <div style={{ marginBottom: '12px', padding: '12px 14px', borderRadius: '8px', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.3)' }}>
-              <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--primary)', marginBottom: '6px' }}>
-                🔒 채널 소유권 인증 (도용 방지)
-              </div>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
-                본인 채널임을 증명하려면 아래 인증 코드를 <strong style={{ color: 'white' }}>내 유튜브 채널 설명(소개)란</strong>에 추가한 뒤 연동해 주세요.
-                설명을 수정할 수 있는 사람은 채널 주인뿐이므로 타인 채널 도용이 차단됩니다.
-              </p>
-              <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <code style={{ fontSize: '14px', fontWeight: 'bold', color: 'white', background: 'rgba(0,0,0,0.35)', padding: '6px 12px', borderRadius: '6px', letterSpacing: '0.5px' }}>
-                  {youtubeVerifyCode}
-                </code>
-                <button
-                  className="btn btn-secondary"
-                  style={{ padding: '6px 10px', fontSize: '11px' }}
-                  onClick={() => { navigator.clipboard?.writeText(youtubeVerifyCode); }}
-                >
-                  코드 복사
-                </button>
-              </div>
-            </div>
-          )}
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <input
-              type="text"
-              value={channelInput}
-              onChange={(e) => setChannelInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') onConnect(); }}
-              placeholder="예: @MrBeast 또는 https://youtube.com/@MrBeast"
-              style={{
-                flex: '1 1 280px',
-                padding: '10px 14px',
-                borderRadius: '8px',
-                background: 'rgba(0,0,0,0.25)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                color: 'white',
-                fontSize: '13px'
-              }}
-            />
             <button
               className="btn btn-primary"
               onClick={onConnect}
@@ -132,7 +92,7 @@ export default function PortfolioView({
               {isSyncingYoutube ? (
                 <>
                   <RefreshCw size={16} className="pulse" style={{ marginRight: '8px' }} />
-                  YouTube API 연동 중...
+                  Google 인증 처리 중...
                 </>
               ) : isLinked ? (
                 <>
@@ -141,8 +101,8 @@ export default function PortfolioView({
                 </>
               ) : (
                 <>
-                  <Link2 size={16} style={{ marginRight: '8px' }} />
-                  채널 연동하기
+                  <ShieldCheck size={16} style={{ marginRight: '8px' }} />
+                  Google로 내 채널 인증하기
                 </>
               )}
             </button>
