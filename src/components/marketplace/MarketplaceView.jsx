@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, SlidersHorizontal, Megaphone, AlertTriangle, Play, Download, Users, X, ClipboardList, MessageSquare } from 'lucide-react';
+import { Search, SlidersHorizontal, Megaphone, AlertTriangle, Play, Download, Users, X, ClipboardList, MessageSquare, Pencil } from 'lucide-react';
 
 export default function MarketplaceView({
   userRole,
@@ -41,6 +41,9 @@ export default function MarketplaceView({
 
   // Advertiser: applicant count per campaign (for at-a-glance badges)
   const [applicantCounts, setApplicantCounts] = useState({});
+
+  // Advertiser: campaign being edited (null = closed)
+  const [editCampaign, setEditCampaign] = useState(null);
 
   const authHeaders = () => ({
     'Content-Type': 'application/json',
@@ -194,6 +197,52 @@ export default function MarketplaceView({
     } else {
       setAds(ads.map(a => a.id === ad.id ? { ...a, status } : a));
       addToast(`${successMsg} [모의 모드]`, toastType);
+    }
+  };
+
+  // Advertiser edits a campaign (only allowed before anyone applies)
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (isGuestMode) {
+      addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
+      return;
+    }
+    const fd = new FormData(e.target);
+    const start = fd.get('durationStart');
+    const end = fd.get('durationEnd');
+    const payload = {
+      title: fd.get('title'),
+      category: fd.get('category'),
+      budget: Number(fd.get('budget')).toLocaleString('ko-KR'),
+      subscribersRequired: fd.get('subscribers'),
+      duration: (start && end) ? `${start} ~ ${end}` : (editCampaign.duration || ''),
+      description: fd.get('description'),
+      genre: fd.get('genre') || '기타',
+      region: fd.get('region') || '전국'
+    };
+
+    if (isBackendConnected) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/campaigns/${editCampaign.id}`, {
+          method: 'PUT',
+          headers: authHeaders(),
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setAds(ads.map(a => a.id === editCampaign.id ? data : a));
+          setEditCampaign(null);
+          addToast("캠페인 내용이 수정되었습니다.", "success");
+        } else {
+          addToast(data.message || "수정에 실패했습니다.", "error");
+        }
+      } catch (err) {
+        addToast("백엔드 통신 중 오류가 발생했습니다.", "error");
+      }
+    } else {
+      setAds(ads.map(a => a.id === editCampaign.id ? { ...a, ...payload } : a));
+      setEditCampaign(null);
+      addToast("캠페인 내용이 수정되었습니다. [모의 모드]", "success");
     }
   };
 
@@ -541,21 +590,37 @@ export default function MarketplaceView({
                   );
                 })()}
 
-                {/* Advertiser: view applicants for their own campaign */}
+                {/* Advertiser: edit + view applicants for their own campaign */}
                 {userRole === 'advertiser' && ad.company === userName && (
-                  <button
-                    className="btn btn-secondary"
-                    style={{ padding: '8px 16px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    onClick={() => openApplicants(ad)}
-                  >
-                    <Users size={14} />
-                    지원자 보기
-                    {applicantCounts[ad.id] > 0 && (
-                      <span className="badge badge-indigo" style={{ padding: '1px 7px', fontSize: '11px' }}>
-                        {applicantCounts[ad.id]}
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    {!applicantCounts[ad.id] ? (
+                      <button
+                        className="btn btn-secondary"
+                        style={{ padding: '8px 14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        onClick={() => setEditCampaign(ad)}
+                      >
+                        <Pencil size={14} />
+                        수정
+                      </button>
+                    ) : (
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }} title="지원자가 있어 수정할 수 없습니다">
+                        🔒 수정 잠김
                       </span>
                     )}
-                  </button>
+                    <button
+                      className="btn btn-secondary"
+                      style={{ padding: '8px 14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      onClick={() => openApplicants(ad)}
+                    >
+                      <Users size={14} />
+                      지원자 보기
+                      {applicantCounts[ad.id] > 0 && (
+                        <span className="badge badge-indigo" style={{ padding: '1px 7px', fontSize: '11px' }}>
+                          {applicantCounts[ad.id]}
+                        </span>
+                      )}
+                    </button>
+                  </div>
                 )}
 
                 {userRole === 'admin' && (
@@ -616,6 +681,74 @@ export default function MarketplaceView({
           ))
         )}
       </div>
+
+      {/* Edit Campaign Modal (Advertiser, only before applicants) */}
+      {editCampaign && (() => {
+        const [dStart = '', dEnd = ''] = (editCampaign.duration || '').split(' ~ ');
+        return (
+          <div className="payment-modal-overlay" onClick={() => setEditCampaign(null)}>
+            <div className="glass-card" style={{ width: '94%', maxWidth: '640px', maxHeight: '86vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h3>캠페인 의뢰 내용 수정</h3>
+                <button onClick={() => setEditCampaign(null)} style={{ background: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}><X size={20} /></button>
+              </div>
+              <form onSubmit={handleEditSubmit} className="contract-form">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div className="form-group">
+                    <label>캠페인 제목</label>
+                    <input type="text" name="title" className="input-control" defaultValue={editCampaign.title} required />
+                  </div>
+                  <div className="form-group">
+                    <label>카테고리</label>
+                    <select name="category" className="input-control" defaultValue={editCampaign.category || '테크/IT'}>
+                      <option value="테크/IT">테크/IT</option>
+                      <option value="뷰티/헬스">뷰티/헬스</option>
+                      <option value="게임">게임</option>
+                      <option value="요리/푸드">요리/푸드</option>
+                      <option value="일상/여행">일상/여행</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                  <div className="form-group">
+                    <label>광고 예산 (원)</label>
+                    <input type="number" name="budget" className="input-control" defaultValue={String(editCampaign.budget || '').replace(/,/g, '')} required />
+                  </div>
+                  <div className="form-group">
+                    <label>최소 구독자 기준</label>
+                    <input type="text" name="subscribers" className="input-control" defaultValue={editCampaign.subscribersRequired || ''} required />
+                  </div>
+                  <div className="form-group">
+                    <label>기한 (시작 ~ 종료)</label>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <input type="date" name="durationStart" className="input-control" defaultValue={dStart} />
+                      <input type="date" name="durationEnd" className="input-control" defaultValue={dEnd} />
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div className="form-group">
+                    <label>타겟 장르</label>
+                    <input type="text" name="genre" className="input-control" defaultValue={editCampaign.genre || ''} />
+                  </div>
+                  <div className="form-group">
+                    <label>활동 가능 지역</label>
+                    <input type="text" name="region" className="input-control" defaultValue={editCampaign.region || ''} />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>상세 캠페인 가이드 및 설명</label>
+                  <textarea name="description" className="input-control" rows="4" defaultValue={editCampaign.description || ''} required></textarea>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                  <button type="button" className="btn btn-secondary" onClick={() => setEditCampaign(null)}>취소</button>
+                  <button type="submit" className="btn btn-primary">수정 내용 저장</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Applicants Modal (Advertiser) */}
       {applicantsModal && (

@@ -1,6 +1,7 @@
 package com.adconnect.backend.service;
 
 import com.adconnect.backend.entity.Campaign;
+import com.adconnect.backend.repository.ApplicationRepository;
 import com.adconnect.backend.repository.CampaignRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,7 @@ import java.util.Optional;
 public class CampaignService {
 
     private final CampaignRepository campaignRepository;
+    private final ApplicationRepository applicationRepository;
 
     @Transactional(readOnly = true)
     public List<Campaign> getAllCampaigns() {
@@ -37,6 +39,28 @@ public class CampaignService {
                 .orElseThrow(() -> new IllegalArgumentException("캠페인 정보를 찾을 수 없습니다."));
 
         campaign.setStatus(status);
+        return campaignRepository.save(campaign);
+    }
+
+    // Edit a campaign's details. Blocked once anyone has applied so terms can't
+    // change out from under applicants. Status and counters are preserved.
+    public Campaign updateCampaign(Long id, Campaign data) {
+        Campaign campaign = campaignRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("캠페인 정보를 찾을 수 없습니다."));
+
+        if (!applicationRepository.findByCampaignId(id).isEmpty()) {
+            throw new IllegalStateException("이미 지원자가 있는 캠페인은 수정할 수 없습니다.");
+        }
+
+        if (data.getTitle() != null) campaign.setTitle(data.getTitle());
+        if (data.getCategory() != null) campaign.setCategory(data.getCategory());
+        if (data.getBudget() != null) campaign.setBudget(data.getBudget());
+        if (data.getSubscribersRequired() != null) campaign.setSubscribersRequired(data.getSubscribersRequired());
+        if (data.getDuration() != null) campaign.setDuration(data.getDuration());
+        if (data.getDescription() != null) campaign.setDescription(data.getDescription());
+        if (data.getGenre() != null) campaign.setGenre(data.getGenre());
+        if (data.getRegion() != null) campaign.setRegion(data.getRegion());
+
         return campaignRepository.save(campaign);
     }
 }

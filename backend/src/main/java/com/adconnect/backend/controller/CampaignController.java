@@ -27,6 +27,17 @@ public class CampaignController {
         return ResponseEntity.ok(saved);
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateCampaign(@PathVariable Long id, @RequestBody Campaign data) {
+        try {
+            return ResponseEntity.ok(campaignService.updateCampaign(id, data));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(409).body(Map.of("message", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @PatchMapping("/{id}/status")
     public ResponseEntity<?> updateCampaignStatus(
             @PathVariable Long id,
