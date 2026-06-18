@@ -45,6 +45,15 @@ public class ApplicationController {
         return ResponseEntity.ok(applicationService.getApplicationsByPartner(email));
     }
 
+    // 1:1 chat rooms derived from applications, shared by both parties
+    @GetMapping("/rooms")
+    public ResponseEntity<List<Map<String, Object>>> getChatRooms(
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) String name,
+            @RequestParam String role) {
+        return ResponseEntity.ok(applicationService.getChatRoomsForUser(email, name, role));
+    }
+
     // Advertiser accepts / rejects an applicant
     @PatchMapping("/{id}/status")
     public ResponseEntity<?> updateStatus(@PathVariable Long id, @RequestBody Map<String, String> body) {

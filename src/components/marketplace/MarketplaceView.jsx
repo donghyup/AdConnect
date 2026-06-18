@@ -47,6 +47,10 @@ export default function MarketplaceView({
       return;
     }
 
+    // Room id is the application id so the advertiser and creator share the exact
+    // same 1:1 room. In mock mode we fall back to the campaign id.
+    let roomId = ad.id;
+
     if (isBackendConnected) {
       try {
         const res = await fetch(`${API_BASE_URL}/applications`, {
@@ -63,6 +67,8 @@ export default function MarketplaceView({
           addToast("지원서 전송 중 오류가 발생했습니다.", "error");
           return;
         }
+        const saved = await res.json();
+        roomId = saved.id;
         addToast("매칭 지원서가 광고주에게 전달되었습니다.", "success");
       } catch (err) {
         addToast("백엔드 통신 중 오류가 발생했습니다.", "error");
@@ -72,24 +78,25 @@ export default function MarketplaceView({
       addToast("이메일 및 카카오톡으로 매칭 지원서가 광고주에게 전달되었습니다. [모의 모드]", "success");
     }
 
-    // Open / create the negotiation chat room (UX unchanged)
-    const exists = chatRooms.find(r => r.id === ad.id);
+    // Open the negotiation chat room (real messages load from the backend on /chat)
+    const exists = chatRooms.find(r => r.id === roomId);
     if (!exists) {
       const newRoom = {
-        id: ad.id,
-        name: `${ad.company} (캠페인 매칭 협상)`,
+        id: roomId,
+        campaignId: ad.id,
+        name: `${ad.company} (${ad.title})`,
+        partnerName: ad.company,
+        budget: ad.budget,
         avatar: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80",
-        lastMsg: "지원해 주셔서 감사합니다! 협의를 시작해 보시죠.",
+        lastMsg: "대화를 시작해 보세요.",
         time: "방금 전",
-        unread: 1,
+        unread: 0,
         online: true,
-        messages: [
-          { sender: 'them', text: `안녕하세요 크리에이터님! 등록하신 지원서 조회가 승인되었습니다. '${ad.title}' 캠페인 협업 조건 조율을 시작합니다.`, time: '방금 전' }
-        ]
+        messages: []
       };
       setChatRooms([newRoom, ...chatRooms]);
     }
-    setActiveChatId(ad.id);
+    setActiveChatId(roomId);
     navigate('/chat');
   };
 

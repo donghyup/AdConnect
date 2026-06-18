@@ -7,6 +7,7 @@ export default function ChatView({
   setChatRooms,
   activeChatId,
   setActiveChatId,
+  userEmail,
   ads,
   setPaymentAmount,
   chatInputText,
@@ -16,6 +17,12 @@ export default function ChatView({
 }) {
   const navigate = useNavigate();
   const activeRoom = chatRooms.find(r => r.id === activeChatId);
+
+  // A message is "mine" when its sender email matches the logged-in user.
+  // Falls back to the legacy 'me'/'them' flag for mock-mode demo rooms.
+  const isMine = (msg) => (msg.senderEmail && userEmail)
+    ? msg.senderEmail === userEmail
+    : msg.sender === 'me';
 
   return (
     <div className="glass-card" style={{ padding: 0 }}>
@@ -82,9 +89,12 @@ export default function ChatView({
                   className="btn btn-secondary"
                   style={{ padding: '8px 16px', fontSize: '12px' }}
                   onClick={() => {
-                    const ad = ads.find(a => a.id === activeChatId);
-                    if (ad) {
-                      setPaymentAmount(ad.budget);
+                    // Prefer the room's own campaign/budget (real 1:1 rooms carry it),
+                    // falling back to a campaign lookup for legacy mock rooms.
+                    const ad = ads.find(a => a.id === (activeRoom.campaignId || activeChatId));
+                    const amount = activeRoom.budget || (ad && ad.budget);
+                    if (amount) {
+                      setPaymentAmount(amount);
                     }
                     navigate('/contracts');
                     addToast("연계 계약서 작성 화면으로 이동했습니다.", "success");
@@ -97,12 +107,12 @@ export default function ChatView({
               {/* Chat Messages */}
               <div className="chat-messages">
                 {activeRoom.messages.map((msg, i) => (
-                  <div key={i} className={`chat-msg-bubble-wrapper ${msg.sender === 'me' ? 'sent' : 'received'}`}>
+                  <div key={i} className={`chat-msg-bubble-wrapper ${isMine(msg) ? 'sent' : 'received'}`}>
                     <div className="chat-msg-bubble">
                       {msg.text}
                     </div>
                     <span className="chat-msg-time">
-                      {msg.time} {msg.sender === 'me' && <span style={{ color: 'var(--secondary)' }}><Check size={10} /> 읽음</span>}
+                      {msg.time} {isMine(msg) && <span style={{ color: 'var(--secondary)' }}><Check size={10} /> 읽음</span>}
                     </span>
                   </div>
                 ))}

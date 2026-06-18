@@ -259,6 +259,46 @@ export default function App() {
     }
   }, [isBackendConnected, isLoggedIn, activeChatId, currentView, token, stompConnected]);
 
+  // Load the user's real 1:1 chat rooms (derived from campaign applications) so the
+  // advertiser and creator share the exact same rooms instead of hardcoded ones.
+  useEffect(() => {
+    if (isBackendConnected && isLoggedIn && currentView === 'chat') {
+      const loadRooms = async () => {
+        try {
+          const params = new URLSearchParams({ role: userRole || 'creator', email: userEmail || '', name: userName || '' });
+          const response = await fetch(`${API_BASE_URL}/applications/rooms?${params.toString()}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (!response.ok) return;
+          const data = await response.json();
+          setChatRooms(prev => data.map(r => {
+            const existing = prev.find(p => p.id === r.roomId);
+            return {
+              id: r.roomId,
+              campaignId: r.campaignId,
+              name: r.name,
+              partnerName: r.partnerName,
+              partnerEmail: r.partnerEmail,
+              budget: r.budget,
+              avatar: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80",
+              lastMsg: existing?.lastMsg || "대화를 시작해 보세요.",
+              time: existing?.time || "",
+              unread: existing?.unread || 0,
+              online: true,
+              messages: existing?.messages || []
+            };
+          }));
+          if (data.length > 0) {
+            setActiveChatId(prevId => data.some(r => r.roomId === prevId) ? prevId : data[0].roomId);
+          }
+        } catch (err) {
+          console.error("Failed to load chat rooms", err);
+        }
+      };
+      loadRooms();
+    }
+  }, [isBackendConnected, isLoggedIn, currentView, userRole, userEmail, userName, token]);
+
   const [chatInputText, setChatInputText] = useState('');
   const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
   const [reports, setReports] = useState(INITIAL_REPORTS);
@@ -1427,11 +1467,12 @@ export default function App() {
           } />
 
           <Route path="/chat" element={
-            <ChatView 
+            <ChatView
               chatRooms={chatRooms}
               setChatRooms={setChatRooms}
               activeChatId={activeChatId}
               setActiveChatId={setActiveChatId}
+              userEmail={userEmail}
               ads={ads}
               setPaymentAmount={setPaymentAmount}
               chatInputText={chatInputText}
