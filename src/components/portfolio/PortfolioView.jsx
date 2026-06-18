@@ -8,7 +8,8 @@ export default function PortfolioView({
   handleYoutubeSync,
   isSyncingYoutube,
   youtubeVideos,
-  youtubeChannel
+  youtubeChannel,
+  youtubeVerifyCode
 }) {
   const [channelInput, setChannelInput] = useState('');
   const isLinked = !!youtubeChannel;
@@ -82,6 +83,30 @@ export default function PortfolioView({
           <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '12px' }}>
             채널 핸들(@아이디) 또는 채널 주소(youtube.com/...)를 입력하면 YouTube Data API를 통해 실제 데이터를 가져옵니다.
           </p>
+
+          {!isLinked && youtubeVerifyCode && (
+            <div style={{ marginBottom: '12px', padding: '12px 14px', borderRadius: '8px', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.3)' }}>
+              <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--primary)', marginBottom: '6px' }}>
+                🔒 채널 소유권 인증 (도용 방지)
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+                본인 채널임을 증명하려면 아래 인증 코드를 <strong style={{ color: 'white' }}>내 유튜브 채널 설명(소개)란</strong>에 추가한 뒤 연동해 주세요.
+                설명을 수정할 수 있는 사람은 채널 주인뿐이므로 타인 채널 도용이 차단됩니다.
+              </p>
+              <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <code style={{ fontSize: '14px', fontWeight: 'bold', color: 'white', background: 'rgba(0,0,0,0.35)', padding: '6px 12px', borderRadius: '6px', letterSpacing: '0.5px' }}>
+                  {youtubeVerifyCode}
+                </code>
+                <button
+                  className="btn btn-secondary"
+                  style={{ padding: '6px 10px', fontSize: '11px' }}
+                  onClick={() => { navigator.clipboard?.writeText(youtubeVerifyCode); }}
+                >
+                  코드 복사
+                </button>
+              </div>
+            </div>
+          )}
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <input
               type="text"

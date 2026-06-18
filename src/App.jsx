@@ -457,6 +457,17 @@ export default function App() {
     const saved = localStorage.getItem('youtubeChannel');
     return saved ? JSON.parse(saved) : null;
   });
+  // Per-user channel-ownership verification code. Must appear in the channel's
+  // description before linking is allowed — this proves the user owns the channel
+  // (only the owner can edit the description), blocking impersonation.
+  const [youtubeVerifyCode] = useState(() => {
+    let c = localStorage.getItem('youtubeVerifyCode');
+    if (!c) {
+      c = 'adconnect-verify-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+      localStorage.setItem('youtubeVerifyCode', c);
+    }
+    return c;
+  });
   const [portfolioStats, setPortfolioStats] = useState({
     subscribers: "—",
     avgViews: "—",
@@ -876,6 +887,15 @@ export default function App() {
 
       if (!channelData) {
         addToast("해당 유튜브 채널을 찾을 수 없습니다. 주소나 핸들(@)을 다시 확인해 주세요.", "error");
+        setIsSyncingYoutube(false);
+        return;
+      }
+
+      // Ownership verification: the channel description must contain the user's
+      // unique code. Blocks linking a channel you don't own (impersonation).
+      const channelDesc = channelData.snippet?.description || '';
+      if (!channelDesc.includes(youtubeVerifyCode)) {
+        addToast(`채널 소유권 인증 실패 — 채널 '${channelData.snippet?.title || ''}'의 설명(소개)에 인증 코드 [${youtubeVerifyCode}]를 추가한 뒤 다시 연동해 주세요.`, "error");
         setIsSyncingYoutube(false);
         return;
       }
@@ -1586,6 +1606,7 @@ export default function App() {
               isSyncingYoutube={isSyncingYoutube}
               youtubeVideos={youtubeVideos}
               youtubeChannel={youtubeChannel}
+              youtubeVerifyCode={youtubeVerifyCode}
             />
           } />
 
