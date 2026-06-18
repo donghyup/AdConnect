@@ -114,20 +114,26 @@ export default function App() {
   const [isBackendConnected, setIsBackendConnected] = useState(false);
   const [token, setToken] = useState(() => localStorage.getItem('token') || '');
 
+  // Restore a persisted session so a page refresh keeps the user logged in
+  // (until they explicitly log out).
+  const savedSession = (() => {
+    try { return JSON.parse(localStorage.getItem('session') || 'null'); } catch (e) { return null; }
+  })();
+
   // Auth & Role state
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isGuestMode, setIsGuestMode] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(!!(savedSession && savedSession.isLoggedIn));
+  const [isGuestMode, setIsGuestMode] = useState(!!(savedSession && savedSession.isGuestMode));
   const [mockOtp, setMockOtp] = useState('');
-  const [googleEmail, setGoogleEmail] = useState('');
-  const [kakaoEmail, setKakaoEmail] = useState('');
-  const [naverEmail, setNaverEmail] = useState('');
+  const [googleEmail, setGoogleEmail] = useState(savedSession?.googleEmail || '');
+  const [kakaoEmail, setKakaoEmail] = useState(savedSession?.kakaoEmail || '');
+  const [naverEmail, setNaverEmail] = useState(savedSession?.naverEmail || '');
   const [authInput, setAuthInput] = useState({ email: '', password: '' });
   const [otpCode, setOtpCode] = useState(['', '', '', '', '', '']);
-  const [userRole, setUserRole] = useState('creator'); // creator | advertiser | admin
-  const [userName, setUserName] = useState('');
-  const [userEmail, setUserEmail] = useState('');
-  const [userPhone, setUserPhone] = useState('');
-  const [userSns, setUserSns] = useState('');
+  const [userRole, setUserRole] = useState(savedSession?.userRole || 'creator'); // creator | advertiser | admin
+  const [userName, setUserName] = useState(savedSession?.userName || '');
+  const [userEmail, setUserEmail] = useState(savedSession?.userEmail || '');
+  const [userPhone, setUserPhone] = useState(savedSession?.userPhone || '');
+  const [userSns, setUserSns] = useState(savedSession?.userSns || '');
 
   useEffect(() => {
     if (token) {
@@ -136,6 +142,18 @@ export default function App() {
       localStorage.removeItem('token');
     }
   }, [token]);
+
+  // Persist the session across refreshes; cleared on logout.
+  useEffect(() => {
+    if (isLoggedIn || isGuestMode) {
+      localStorage.setItem('session', JSON.stringify({
+        isLoggedIn, isGuestMode, userRole, userName, userEmail, userPhone, userSns,
+        googleEmail, kakaoEmail, naverEmail
+      }));
+    } else {
+      localStorage.removeItem('session');
+    }
+  }, [isLoggedIn, isGuestMode, userRole, userName, userEmail, userPhone, userSns, googleEmail, kakaoEmail, naverEmail]);
 
   // Heartbeat check for backend connection
   useEffect(() => {
