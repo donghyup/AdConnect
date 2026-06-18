@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, SlidersHorizontal, Megaphone, AlertTriangle, Play, Download, Users, X } from 'lucide-react';
+import { Search, SlidersHorizontal, Megaphone, AlertTriangle, Play, Download, Users, X, ClipboardList, MessageSquare } from 'lucide-react';
 
 export default function MarketplaceView({
   userRole,
@@ -35,10 +35,27 @@ export default function MarketplaceView({
   // Applicants modal state (advertiser viewing who applied to their campaign)
   const [applicantsModal, setApplicantsModal] = useState(null); // { campaign, applicants, loading }
 
+  // Creator's own application history (내 지원 현황)
+  const [myApplications, setMyApplications] = useState([]);
+
   const authHeaders = () => ({
     'Content-Type': 'application/json',
     ...(token ? { 'Authorization': `Bearer ${token}` } : {})
   });
+
+  useEffect(() => {
+    if (isBackendConnected && userRole === 'creator' && userEmail) {
+      fetch(`${API_BASE_URL}/applications/mine?email=${encodeURIComponent(userEmail)}`, { headers: authHeaders() })
+        .then(r => r.ok ? r.json() : [])
+        .then(data => setMyApplications(Array.isArray(data) ? data : []))
+        .catch(() => {});
+    } else {
+      setMyApplications([]);
+    }
+  }, [isBackendConnected, userRole, userEmail, API_BASE_URL, token, ads]);
+
+  const statusBadgeClass = (status) =>
+    status === '수락' ? 'badge-emerald' : status === '거절' ? 'badge-rose' : 'badge-warning';
 
   // Creator applies to a campaign -> persist to backend, then open the chat room
   const handleApply = async (ad) => {
@@ -258,6 +275,50 @@ export default function MarketplaceView({
           </div>
         </div>
       </div>
+
+      {/* Creator: my application history */}
+      {userRole === 'creator' && myApplications.length > 0 && (
+        <div className="glass-card">
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <ClipboardList size={18} color="var(--primary)" />
+            내 지원 현황 ({myApplications.length})
+          </h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '16px' }}>
+            내가 지원한 캠페인의 진행 상태입니다. 광고주가 수락하면 협의 채팅에서 계약을 진행하세요.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {myApplications.map(app => {
+              const ad = ads.find(a => a.id === app.campaignId);
+              return (
+                <div
+                  key={app.id}
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '12px 14px', borderRadius: '10px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: '14px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {ad ? ad.title : `캠페인 #${app.campaignId}`}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      {ad ? ad.company : ''}{ad ? ' · ' : ''}지급 광고비 ₩{ad ? ad.budget : '-'}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                    <span className={`badge ${statusBadgeClass(app.status)}`}>{app.status}</span>
+                    <button
+                      className="btn btn-secondary"
+                      style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      onClick={() => { setActiveChatId(app.id); navigate('/chat'); }}
+                    >
+                      <MessageSquare size={13} />
+                      협의 채팅
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Campaign Creation Option for Advertisers */}
       {userRole === 'advertiser' && (
