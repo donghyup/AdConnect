@@ -110,6 +110,19 @@ export default function ContractsView({
       const data = await res.json();
       if (res.ok) {
         setSettlement(data);
+        // Notify the creator that the payout has been released
+        if (data.creatorEmail) {
+          fetch(`${API_BASE_URL}/notifications`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({
+              recipientEmail: data.creatorEmail,
+              text: `'${data.projectName || '캠페인'}' 정산이 승인되어 ₩${data.amount} 대금이 지급되었습니다.`,
+              type: 'settlement',
+              roomId: data.applicationId
+            })
+          }).catch(() => {});
+        }
         addToast(`정산이 승인되어 ₩${data.amount} 대금이 크리에이터에게 지급되었습니다.`, "success");
       } else {
         addToast(data.message || "정산 승인에 실패했습니다.", "error");

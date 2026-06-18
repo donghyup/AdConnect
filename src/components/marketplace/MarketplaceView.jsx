@@ -235,6 +235,20 @@ export default function MarketplaceView({
           ...prev,
           applicants: prev.applicants.map(a => a.id === applicationId ? updated : a)
         } : prev);
+        // Notify the creator that their application was accepted
+        if (status === '수락' && updated.partnerEmail) {
+          const campaignTitle = applicantsModal?.campaign?.title || '캠페인';
+          fetch(`${API_BASE_URL}/notifications`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({
+              recipientEmail: updated.partnerEmail,
+              text: `'${campaignTitle}' 캠페인 지원이 수락되었습니다! 협의 채팅에서 계약을 진행해 주세요.`,
+              type: 'match',
+              roomId: updated.id
+            })
+          }).catch(() => {});
+        }
         addToast(`지원자를 '${status}' 처리했습니다.`, status === '수락' ? 'success' : 'info');
       } else {
         addToast("상태 변경에 실패했습니다.", "error");
@@ -561,23 +575,32 @@ export default function MarketplaceView({
                         </button>
                       </>
                     )}
-                    <button 
-                      className="btn btn-secondary" 
+                    <button
+                      className="btn btn-secondary"
                       style={{ padding: '6px 12px', fontSize: '11px' }}
-                      onClick={() => {
+                      onClick={async () => {
                         if (isGuestMode) {
                           addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
                           return;
                         }
-                        const newReport = {
-                          id: Date.now(),
+                        const payload = {
                           type: "유저 신고",
                           target: `광고 ID ${ad.id}: ${ad.title}`,
-                          reporter: "최고 관리자 검수",
-                          status: "대기 중",
-                          date: new Date().toLocaleDateString('ko-KR')
+                          reporter: "최고 관리자 검수"
                         };
-                        setReports([newReport, ...reports]);
+                        if (isBackendConnected) {
+                          try {
+                            const res = await fetch(`${API_BASE_URL}/reports`, {
+                              method: 'POST', headers: authHeaders(), body: JSON.stringify(payload)
+                            });
+                            if (res.ok) {
+                              const saved = await res.json();
+                              setReports([saved, ...reports]);
+                            }
+                          } catch (err) { addToast("백엔드 통신 중 오류가 발생했습니다.", "error"); return; }
+                        } else {
+                          setReports([{ id: Date.now(), ...payload, status: "대기 중", date: new Date().toLocaleDateString('ko-KR') }, ...reports]);
+                        }
                         addToast("부적절 광고 검수 신고 접수완료.", "warning");
                       }}
                     >

@@ -52,13 +52,23 @@ export default function AdminView({
                   <td>
                     {report.status === '대기 중' ? (
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <button 
-                          className="btn btn-primary" 
+                        <button
+                          className="btn btn-primary"
                           style={{ padding: '6px 12px', fontSize: '11px' }}
-                          onClick={() => {
+                          onClick={async () => {
                             if (isGuestMode) {
                               addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
                               return;
+                            }
+                            if (isBackendConnected) {
+                              try {
+                                const res = await fetch(`${API_BASE_URL}/reports/${report.id}/status`, {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                  body: JSON.stringify({ status: '처리 완료' })
+                                });
+                                if (!res.ok) { addToast("조치 처리에 실패했습니다.", "error"); return; }
+                              } catch (err) { addToast("백엔드 통신 중 오류가 발생했습니다.", "error"); return; }
                             }
                             setReports(reports.map(r => r.id === report.id ? { ...r, status: '처리 완료' } : r));
                             addToast("해당 신고 대상물 차단 및 영구 블락 조치가 완료되었습니다.", "success");
@@ -66,13 +76,22 @@ export default function AdminView({
                         >
                           블랙리스트 조치
                         </button>
-                        <button 
-                          className="btn btn-secondary" 
+                        <button
+                          className="btn btn-secondary"
                           style={{ padding: '6px 12px', fontSize: '11px' }}
-                          onClick={() => {
+                          onClick={async () => {
                             if (isGuestMode) {
                               addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
                               return;
+                            }
+                            if (isBackendConnected) {
+                              try {
+                                const res = await fetch(`${API_BASE_URL}/reports/${report.id}`, {
+                                  method: 'DELETE',
+                                  headers: { 'Authorization': `Bearer ${token}` }
+                                });
+                                if (!res.ok) { addToast("기각 처리에 실패했습니다.", "error"); return; }
+                              } catch (err) { addToast("백엔드 통신 중 오류가 발생했습니다.", "error"); return; }
                             }
                             setReports(reports.filter(r => r.id !== report.id));
                             addToast("신고가 반려 처리되었습니다.", "info");

@@ -1198,9 +1198,37 @@ export default function App() {
   };
 
   // Handle Notification Click Navigation Routing
+  // Load persisted notifications for the logged-in user
+  useEffect(() => {
+    if (isBackendConnected && isLoggedIn && userEmail) {
+      fetch(`${API_BASE_URL}/notifications?email=${encodeURIComponent(userEmail)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+        .then(r => r.ok ? r.json() : [])
+        .then(d => { if (Array.isArray(d)) setNotifications(d); })
+        .catch(() => {});
+    }
+  }, [isBackendConnected, isLoggedIn, userEmail, token]);
+
+  // Load reports from the backend for the admin
+  useEffect(() => {
+    if (isBackendConnected && isLoggedIn && userRole === 'admin') {
+      fetch(`${API_BASE_URL}/reports`, { headers: { 'Authorization': `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : [])
+        .then(d => { if (Array.isArray(d)) setReports(d); })
+        .catch(() => {});
+    }
+  }, [isBackendConnected, isLoggedIn, userRole, token]);
+
   const handleNotificationClick = (notif) => {
-    // Mark as read
+    // Mark as read (persist when backed by the server)
     setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, unread: false } : n));
+    if (isBackendConnected && notif.id) {
+      fetch(`${API_BASE_URL}/notifications/${notif.id}/read`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}` }
+      }).catch(() => {});
+    }
     setShowNotificationPanel(false);
 
     if (notif.type === 'match' || notif.type === 'chat') {
