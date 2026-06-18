@@ -34,6 +34,29 @@ spring:
     database-platform: org.hibernate.dialect.H2Dialect
 
 ---
+# PostgreSQL 운영용 프로파일 (Render 등 클라우드 영속 DB 연동)
+# Render 대시보드에서 아래 환경변수를 설정하세요:
+#   SPRING_PROFILES_ACTIVE=postgres
+#   SPRING_DATASOURCE_URL=jdbc:postgresql://<host>:<port>/<dbname>
+#   SPRING_DATASOURCE_USERNAME=<user>
+#   SPRING_DATASOURCE_PASSWORD=<password>
+spring:
+  config:
+    activate:
+      on-profile: postgres
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+---
 # MySQL 운영용 프로파일 (로컬 MySQL 연동을 원할 경우 스위칭)
 spring:
   config:
