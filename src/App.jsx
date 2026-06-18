@@ -240,9 +240,11 @@ export default function App() {
     }
   }, [isBackendConnected, token]);
 
-  // Fetch chat messages from backend when online and in chat view (REST Fallback Polling)
+  // Poll the active room's messages while in chat view. Runs regardless of the
+  // WebSocket state so both parties reliably see new messages within ~2s even if
+  // the live STOMP broadcast doesn't reach them (WebSocket is best-effort/instant).
   useEffect(() => {
-    if (isBackendConnected && isLoggedIn && currentView === 'chat' && !stompConnected) {
+    if (isBackendConnected && isLoggedIn && currentView === 'chat') {
       const fetchChatMessages = async () => {
         try {
           const response = await fetch(`${API_BASE_URL}/chat/rooms/${activeChatId}/messages`, {
@@ -275,7 +277,7 @@ export default function App() {
       const interval = setInterval(fetchChatMessages, 2000);
       return () => clearInterval(interval);
     }
-  }, [isBackendConnected, isLoggedIn, activeChatId, currentView, token, stompConnected]);
+  }, [isBackendConnected, isLoggedIn, activeChatId, currentView, token]);
 
   // Load the user's real 1:1 chat rooms (derived from campaign applications) so the
   // advertiser and creator share the exact same rooms instead of hardcoded ones.
@@ -595,8 +597,20 @@ export default function App() {
         JSON.stringify(messagePayload)
       );
       if (sent) {
+        // Optimistically show the sender's own message instantly; the 2s poll
+        // reconciles with the persisted list (which is authoritative).
+        const optimistic = {
+          sender: 'me',
+          senderEmail: userEmail,
+          text: chatInputText,
+          time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+        };
+        setChatRooms(prevRooms => prevRooms.map(room =>
+          room.id === activeChatId
+            ? { ...room, lastMsg: chatInputText, time: '방금 전', messages: [...room.messages, optimistic] }
+            : room
+        ));
         setChatInputText('');
-        addToast("메시지가 전송되었습니다 (WebSocket 전송)", "success");
         return;
       }
     }
