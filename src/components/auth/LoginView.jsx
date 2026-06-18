@@ -44,7 +44,7 @@ export default function LoginView({
       </div>
 
       <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-        JWT 로그인 요청하기
+        로그인
       </button>
 
       <div className="auth-footer-links">
