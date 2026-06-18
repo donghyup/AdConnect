@@ -965,7 +965,7 @@ export default function App() {
       }
       
       const tossPayments = window.TossPayments(clientKey);
-      
+
       // Request payment
       tossPayments.requestPayment(paymentMethod === 'card' ? '카드' : '토스페이', {
         amount: numericAmount,
@@ -975,10 +975,22 @@ export default function App() {
         successUrl: window.location.origin + '?payment_status=success',
         failUrl: window.location.origin + '?payment_status=fail',
       }).catch((err) => {
-        addToast(`결제창 호출 실패: ${err.message}`, "error");
+        // 사용자가 직접 닫은 경우(취소)는 정산을 진행하지 않는다.
+        const canceled = err && (err.code === 'USER_CANCEL' || (err.message && err.message.includes('취소')));
+        if (canceled) {
+          addToast("결제가 취소되었습니다.", "info");
+          return;
+        }
+        // 테스트 결제창을 열 수 없는 환경(키/도메인 제약 등)에서는 모의 결제로 정산을 완료해
+        // 데모 흐름이 끊기지 않게 한다.
+        console.warn("Toss requestPayment failed, falling back to mock:", err);
+        addToast("테스트 결제창을 열 수 없어 모의 결제로 정산을 진행합니다.", "warning");
+        finalizeSettlementDeposit();
       });
     } catch (err) {
-      addToast(`결제 요청 준비 중 오류 발생: ${err.message}`, "error");
+      console.warn("executePayment error, falling back to mock:", err);
+      addToast("테스트 결제 준비 중 문제가 있어 모의 결제로 정산을 진행합니다.", "warning");
+      finalizeSettlementDeposit();
     }
   };
 
