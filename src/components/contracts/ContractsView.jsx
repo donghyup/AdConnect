@@ -73,8 +73,12 @@ export default function ContractsView({
       addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
       return false;
     }
-    if (!isBackendConnected || !applicationId) {
-      addToast("정산을 진행하려면 채팅에서 매칭된 계약으로 진입해 주세요. (백엔드 연결 필요)", "warning");
+    if (!applicationId) {
+      addToast("매칭된 계약에서만 정산이 가능합니다. 협의 채팅방의 '계약 및 안전 결제 작성'으로 진입해 주세요.", "warning");
+      return false;
+    }
+    if (!isBackendConnected) {
+      addToast("서버 연결을 확인하는 중입니다. 잠시 후 다시 시도해 주세요.", "warning");
       return false;
     }
     return true;
