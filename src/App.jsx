@@ -267,6 +267,14 @@ export default function App() {
                 return room;
               })
             );
+            // I'm viewing this room — mark the other party's unread messages as read
+            const hasUnreadFromOther = data.some(m => m.senderEmail && m.senderEmail !== userEmail && !m.read);
+            if (hasUnreadFromOther) {
+              fetch(`${API_BASE_URL}/chat/rooms/${activeChatId}/read?email=${encodeURIComponent(userEmail)}`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}` }
+              }).catch(() => {});
+            }
           }
         } catch (err) {
           console.error("Failed to fetch messages from backend", err);

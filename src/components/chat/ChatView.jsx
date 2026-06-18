@@ -127,7 +127,10 @@ export default function ChatView({
                       {msg.text}
                     </div>
                     <span className="chat-msg-time">
-                      {msg.time} {isMine(msg) && <span style={{ color: 'var(--secondary)' }}><Check size={10} /> 읽음</span>}
+                      {msg.time}{' '}
+                      {isMine(msg) && (msg.read
+                        ? <span style={{ color: 'var(--secondary)' }}><Check size={10} /> 읽음</span>
+                        : <span style={{ color: 'var(--text-muted)' }}>전송됨</span>)}
                     </span>
                   </div>
                 ))}

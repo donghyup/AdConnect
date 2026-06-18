@@ -24,6 +24,13 @@ public class ChatController {
         return ResponseEntity.ok(history);
     }
 
+    // Reader opened the room — mark the other party's messages as read
+    @PatchMapping("/rooms/{roomId}/read")
+    public ResponseEntity<?> markRoomRead(@PathVariable Long roomId, @RequestParam String email) {
+        chatService.markRoomRead(roomId, email);
+        return ResponseEntity.ok(Map.of("message", "읽음 처리되었습니다."));
+    }
+
     // REST Fallback endpoint to send message
     @PostMapping("/messages/send")
     public ResponseEntity<?> sendMessage(@RequestBody Map<String, Object> request) {

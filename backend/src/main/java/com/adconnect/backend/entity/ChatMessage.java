@@ -30,4 +30,9 @@ public class ChatMessage {
     private String text;
 
     private String time;
+
+    // Read receipt: true once the other party has opened the room and seen it.
+    // Column renamed to avoid the SQL reserved word "read".
+    @Column(name = "is_read")
+    private boolean read;
 }

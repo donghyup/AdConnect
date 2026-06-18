@@ -25,6 +25,21 @@ public class ChatService {
         return chatMessageRepository.findByRoomIdOrderByIdAsc(roomId);
     }
 
+    // Mark every message in the room that was NOT sent by the reader as read.
+    public void markRoomRead(Long roomId, String readerEmail) {
+        List<ChatMessage> msgs = chatMessageRepository.findByRoomIdOrderByIdAsc(roomId);
+        boolean changed = false;
+        for (ChatMessage m : msgs) {
+            if (readerEmail != null && !readerEmail.equals(m.getSenderEmail()) && !m.isRead()) {
+                m.setRead(true);
+                changed = true;
+            }
+        }
+        if (changed) {
+            chatMessageRepository.saveAll(msgs);
+        }
+    }
+
     public ChatMessage saveAndBroadcast(Long roomId, String sender, String senderEmail, String text) {
         String time = LocalTime.now().format(formatter);
 
