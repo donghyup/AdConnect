@@ -54,6 +54,17 @@ public class ApplicationController {
         return ResponseEntity.ok(applicationService.getChatRoomsForUser(email, name, role));
     }
 
+    // Creator cancels their application
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> cancel(@PathVariable Long id) {
+        try {
+            applicationService.delete(id);
+            return ResponseEntity.ok(Map.of("message", "지원이 취소되었습니다."));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     // Advertiser accepts / rejects an applicant
     @PatchMapping("/{id}/status")
     public ResponseEntity<?> updateStatus(@PathVariable Long id, @RequestBody Map<String, String> body) {

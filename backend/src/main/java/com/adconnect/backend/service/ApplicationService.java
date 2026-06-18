@@ -56,6 +56,14 @@ public class ApplicationService {
         return applicationRepository.save(application);
     }
 
+    // Creator cancels (withdraws) their application
+    public void delete(Long id) {
+        if (!applicationRepository.existsById(id)) {
+            throw new IllegalArgumentException("지원 내역을 찾을 수 없습니다.");
+        }
+        applicationRepository.deleteById(id);
+    }
+
     // Build the 1:1 chat rooms a user can see. Each application is a negotiation
     // thread between one creator and the campaign's advertiser. roomId = application id
     // so the two parties share the exact same room.

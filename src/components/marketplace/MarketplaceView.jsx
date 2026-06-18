@@ -68,7 +68,7 @@ export default function MarketplaceView({
     }
   }, [isBackendConnected, userRole, userName, API_BASE_URL, token, ads]);
 
-  useEffect(() => {
+  const loadMyApplications = () => {
     if (isBackendConnected && userRole === 'creator' && userEmail) {
       fetch(`${API_BASE_URL}/applications/mine?email=${encodeURIComponent(userEmail)}`, { headers: authHeaders() })
         .then(r => r.ok ? r.json() : [])
@@ -77,6 +77,10 @@ export default function MarketplaceView({
     } else {
       setMyApplications([]);
     }
+  };
+
+  useEffect(() => {
+    loadMyApplications();
   }, [isBackendConnected, userRole, userEmail, API_BASE_URL, token, ads]);
 
   const statusBadgeClass = (status) =>
@@ -140,6 +144,7 @@ export default function MarketplaceView({
         }
         const saved = await res.json();
         roomId = saved.id;
+        loadMyApplications();
         addToast("매칭 지원서가 광고주에게 전달되었습니다.", "success");
       } catch (err) {
         addToast("백엔드 통신 중 오류가 발생했습니다.", "error");
@@ -244,6 +249,22 @@ export default function MarketplaceView({
       setEditCampaign(null);
       addToast("캠페인 내용이 수정되었습니다. [모의 모드]", "success");
     }
+  };
+
+  // Creator cancels (withdraws) their application
+  const handleCancelApplication = async (applicationId) => {
+    if (isGuestMode) {
+      addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
+      return;
+    }
+    if (isBackendConnected) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/applications/${applicationId}`, { method: 'DELETE', headers: authHeaders() });
+        if (!res.ok) { addToast("지원 취소에 실패했습니다.", "error"); return; }
+      } catch (err) { addToast("백엔드 통신 중 오류가 발생했습니다.", "error"); return; }
+    }
+    setMyApplications(prev => prev.filter(a => a.id !== applicationId));
+    addToast("지원이 취소되었습니다.", "info");
   };
 
   // Creator reports an inappropriate campaign
@@ -612,22 +633,39 @@ export default function MarketplaceView({
                 
                 {/* Interactions based on role */}
                 {userRole === 'creator' && ad.status === '승인 완료' && (() => {
+                  const myApp = myApplications.find(a => a.campaignId === ad.id);
                   const elig = checkEligibility(ad);
                   return (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span className={`badge ${elig.state === 'ok' ? 'badge-emerald' : elig.state === 'short' ? 'badge-rose' : 'badge-warning'}`} style={{ fontSize: '10px' }}>
-                        {elig.state === 'ok' ? '✓ 자격 충족' : elig.state === 'short' ? `구독자 미달 (${elig.required.toLocaleString('ko-KR')}+ 필요)` : '채널 연동 필요'}
-                      </span>
-                      <button
-                        className="btn btn-primary"
-                        style={{ padding: '8px 16px', fontSize: '12px', opacity: elig.state === 'ok' ? 1 : 0.6 }}
-                        onClick={() => handleApply(ad)}
-                      >
-                        캠페인 매칭 지원
-                      </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      {myApp ? (
+                        myApp.status === '수락' ? (
+                          <span className="badge badge-emerald" style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>✓ 매칭 수락됨</span>
+                        ) : (
+                          <button
+                            className="btn btn-secondary"
+                            style={{ padding: '8px 16px', fontSize: '12px', whiteSpace: 'nowrap' }}
+                            onClick={() => handleCancelApplication(myApp.id)}
+                          >
+                            지원 취소
+                          </button>
+                        )
+                      ) : (
+                        <>
+                          <span className={`badge ${elig.state === 'ok' ? 'badge-emerald' : elig.state === 'short' ? 'badge-rose' : 'badge-warning'}`} style={{ fontSize: '10px', whiteSpace: 'nowrap' }}>
+                            {elig.state === 'ok' ? '✓ 자격 충족' : elig.state === 'short' ? `구독자 미달` : '채널 연동 필요'}
+                          </span>
+                          <button
+                            className="btn btn-primary"
+                            style={{ padding: '8px 16px', fontSize: '12px', whiteSpace: 'nowrap', opacity: elig.state === 'ok' ? 1 : 0.6 }}
+                            onClick={() => handleApply(ad)}
+                          >
+                            캠페인 매칭 지원
+                          </button>
+                        </>
+                      )}
                       <button
                         className="btn btn-secondary"
-                        style={{ padding: '8px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}
+                        style={{ padding: '8px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
                         title="부적절한 광고 신고"
                         onClick={() => handleReport(ad)}
                       >
