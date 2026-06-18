@@ -24,7 +24,30 @@ export default function ContractsView({
   addToast
 }) {
   const sigCanvasRef = useRef(null);
+  const contractRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
+
+  // Render the signed contract paper to an actual downloadable PDF
+  const handleDownloadPdf = async () => {
+    const el = contractRef.current;
+    if (!el) return;
+    addToast("계약서 PDF를 생성하는 중입니다...", "info");
+    try {
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+        import('jspdf'),
+        import('html2canvas'),
+      ]);
+      const canvas = await html2canvas(el, { backgroundColor: '#0E1126', scale: 2, useCORS: true });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: canvas.height >= canvas.width ? 'p' : 'l', unit: 'px', format: [canvas.width, canvas.height] });
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height, undefined, 'FAST');
+      const name = (activeContract?.projectName || '계약서').replace(/[^\w가-힣]+/g, '_').slice(0, 30);
+      pdf.save(`AdConnect_계약서_${name}.pdf`);
+      addToast("계약서 PDF가 다운로드되었습니다.", "success");
+    } catch (err) {
+      addToast("PDF 생성 중 오류가 발생했습니다.", "error");
+    }
+  };
 
   // Escrow settlement lifecycle (예치 대기 → 예치 완료 → 작업 완료 → 정산 완료)
   const [settlement, setSettlement] = useState(null);
@@ -294,7 +317,7 @@ export default function ContractsView({
             </div>
 
             {/* Electronic Contract Paper */}
-            <div className="contract-paper" style={{ position: 'relative' }}>
+            <div ref={contractRef} className="contract-paper" style={{ position: 'relative' }}>
               <div className="contract-title">광고 콘텐츠 제작 매칭 협업 계약서</div>
 
               <div className="contract-section">
@@ -398,7 +421,7 @@ export default function ContractsView({
                   최종 서명 전자 계약서 제출
                 </button>
               ) : (
-                <button className="btn btn-secondary" style={{ width: '280px' }} onClick={() => addToast("계약서가 PDF 파일로 안전 다운로드 되었습니다.", "success")}>
+                <button className="btn btn-secondary" style={{ width: '280px' }} onClick={handleDownloadPdf}>
                   <FileText size={16} />
                   체결 완료된 PDF 계약서 보관 다운로드
                 </button>
