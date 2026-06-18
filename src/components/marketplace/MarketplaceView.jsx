@@ -38,10 +38,31 @@ export default function MarketplaceView({
   // Creator's own application history (내 지원 현황)
   const [myApplications, setMyApplications] = useState([]);
 
+  // Advertiser: applicant count per campaign (for at-a-glance badges)
+  const [applicantCounts, setApplicantCounts] = useState({});
+
   const authHeaders = () => ({
     'Content-Type': 'application/json',
     ...(token ? { 'Authorization': `Bearer ${token}` } : {})
   });
+
+  useEffect(() => {
+    if (isBackendConnected && userRole === 'advertiser' && userName) {
+      const params = new URLSearchParams({ role: 'advertiser', name: userName });
+      fetch(`${API_BASE_URL}/applications/rooms?${params.toString()}`, { headers: authHeaders() })
+        .then(r => r.ok ? r.json() : [])
+        .then(rooms => {
+          const counts = {};
+          (Array.isArray(rooms) ? rooms : []).forEach(rm => {
+            counts[rm.campaignId] = (counts[rm.campaignId] || 0) + 1;
+          });
+          setApplicantCounts(counts);
+        })
+        .catch(() => {});
+    } else {
+      setApplicantCounts({});
+    }
+  }, [isBackendConnected, userRole, userName, API_BASE_URL, token, ads]);
 
   useEffect(() => {
     if (isBackendConnected && userRole === 'creator' && userEmail) {
@@ -445,6 +466,11 @@ export default function MarketplaceView({
                   >
                     <Users size={14} />
                     지원자 보기
+                    {applicantCounts[ad.id] > 0 && (
+                      <span className="badge badge-indigo" style={{ padding: '1px 7px', fontSize: '11px' }}>
+                        {applicantCounts[ad.id]}
+                      </span>
+                    )}
                   </button>
                 )}
 
@@ -574,6 +600,14 @@ export default function MarketplaceView({
                         onClick={() => updateApplicantStatus(app.id, '거절')}
                       >
                         거절
+                      </button>
+                      <button
+                        className="btn btn-secondary"
+                        style={{ padding: '5px 12px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '5px' }}
+                        onClick={() => { setApplicantsModal(null); setActiveChatId(app.id); navigate('/chat'); }}
+                      >
+                        <MessageSquare size={12} />
+                        협의 채팅
                       </button>
                     </div>
                   </div>
