@@ -42,6 +42,13 @@ public class CampaignService {
         return campaignRepository.save(campaign);
     }
 
+    public void deleteCampaign(Long id) {
+        if (!campaignRepository.existsById(id)) {
+            throw new IllegalArgumentException("캠페인 정보를 찾을 수 없습니다.");
+        }
+        campaignRepository.deleteById(id);
+    }
+
     // Edit a campaign's details. Blocked once anyone has applied so terms can't
     // change out from under applicants. Status and counters are preserved.
     public Campaign updateCampaign(Long id, Campaign data) {

@@ -38,6 +38,16 @@ public class CampaignController {
         }
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteCampaign(@PathVariable Long id) {
+        try {
+            campaignService.deleteCampaign(id);
+            return ResponseEntity.ok(Map.of("message", "캠페인이 삭제되었습니다."));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @PatchMapping("/{id}/status")
     public ResponseEntity<?> updateCampaignStatus(
             @PathVariable Long id,

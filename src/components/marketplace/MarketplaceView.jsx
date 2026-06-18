@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, SlidersHorizontal, Megaphone, AlertTriangle, Play, Download, Users, X, ClipboardList, MessageSquare, Pencil } from 'lucide-react';
+import { Search, SlidersHorizontal, Megaphone, AlertTriangle, Play, Download, Users, X, ClipboardList, MessageSquare, Pencil, Flag, Trash2 } from 'lucide-react';
 
 export default function MarketplaceView({
   userRole,
@@ -244,6 +244,45 @@ export default function MarketplaceView({
       setEditCampaign(null);
       addToast("캠페인 내용이 수정되었습니다. [모의 모드]", "success");
     }
+  };
+
+  // Creator reports an inappropriate campaign
+  const handleReport = async (ad) => {
+    if (isGuestMode) {
+      addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
+      return;
+    }
+    const payload = {
+      type: "유저 신고",
+      target: `광고 ID ${ad.id}: ${ad.title}`,
+      reporter: userName || userEmail || "크리에이터"
+    };
+    if (isBackendConnected) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/reports`, {
+          method: 'POST', headers: authHeaders(), body: JSON.stringify(payload)
+        });
+        if (!res.ok) { addToast("신고 접수에 실패했습니다.", "error"); return; }
+      } catch (err) { addToast("백엔드 통신 중 오류가 발생했습니다.", "error"); return; }
+    }
+    addToast("부적절한 광고로 신고가 접수되었습니다. 관리자가 검토합니다.", "warning");
+  };
+
+  // Admin deletes a campaign entirely
+  const handleDeleteCampaign = async (ad) => {
+    if (isGuestMode) {
+      addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
+      return;
+    }
+    if (!window.confirm(`'${ad.title}' 캠페인을 영구 삭제하시겠습니까?`)) return;
+    if (isBackendConnected) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/campaigns/${ad.id}`, { method: 'DELETE', headers: authHeaders() });
+        if (!res.ok) { addToast("삭제에 실패했습니다.", "error"); return; }
+      } catch (err) { addToast("백엔드 통신 중 오류가 발생했습니다.", "error"); return; }
+    }
+    setAds(ads.filter(a => a.id !== ad.id));
+    addToast("캠페인이 삭제되었습니다.", "error");
   };
 
   // Advertiser opens the applicant list for one of their campaigns
@@ -586,6 +625,15 @@ export default function MarketplaceView({
                       >
                         캠페인 매칭 지원
                       </button>
+                      <button
+                        className="btn btn-secondary"
+                        style={{ padding: '8px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}
+                        title="부적절한 광고 신고"
+                        onClick={() => handleReport(ad)}
+                      >
+                        <Flag size={13} />
+                        신고
+                      </button>
                     </div>
                   );
                 })()}
@@ -624,55 +672,32 @@ export default function MarketplaceView({
                 )}
 
                 {userRole === 'admin' && (
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    {ad.status === '승인 대기' && (
-                      <>
-                        <button
-                          className="btn btn-success"
-                          style={{ padding: '6px 12px', fontSize: '11px' }}
-                          onClick={() => updateCampaignStatus(ad, '승인 완료', "캠페인 승인이 완료되었습니다.")}
-                        >
-                          승인
-                        </button>
-                        <button
-                          className="btn btn-danger"
-                          style={{ padding: '6px 12px', fontSize: '11px' }}
-                          onClick={() => updateCampaignStatus(ad, '반려', "캠페인이 반려 처리되었습니다.", "error")}
-                        >
-                          반려
-                        </button>
-                      </>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {ad.status !== '승인 완료' && (
+                      <button
+                        className="btn btn-success"
+                        style={{ padding: '6px 12px', fontSize: '11px' }}
+                        onClick={() => updateCampaignStatus(ad, '승인 완료', "캠페인이 승인되었습니다.")}
+                      >
+                        {ad.status === '반려' ? '승인으로 변경' : '승인'}
+                      </button>
+                    )}
+                    {ad.status !== '반려' && (
+                      <button
+                        className="btn btn-danger"
+                        style={{ padding: '6px 12px', fontSize: '11px' }}
+                        onClick={() => updateCampaignStatus(ad, '반려', "캠페인이 반려 처리되었습니다.", "error")}
+                      >
+                        {ad.status === '승인 완료' ? '반려로 변경' : '반려'}
+                      </button>
                     )}
                     <button
                       className="btn btn-secondary"
-                      style={{ padding: '6px 12px', fontSize: '11px' }}
-                      onClick={async () => {
-                        if (isGuestMode) {
-                          addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                          return;
-                        }
-                        const payload = {
-                          type: "유저 신고",
-                          target: `광고 ID ${ad.id}: ${ad.title}`,
-                          reporter: "최고 관리자 검수"
-                        };
-                        if (isBackendConnected) {
-                          try {
-                            const res = await fetch(`${API_BASE_URL}/reports`, {
-                              method: 'POST', headers: authHeaders(), body: JSON.stringify(payload)
-                            });
-                            if (res.ok) {
-                              const saved = await res.json();
-                              setReports([saved, ...reports]);
-                            }
-                          } catch (err) { addToast("백엔드 통신 중 오류가 발생했습니다.", "error"); return; }
-                        } else {
-                          setReports([{ id: Date.now(), ...payload, status: "대기 중", date: new Date().toLocaleDateString('ko-KR') }, ...reports]);
-                        }
-                        addToast("부적절 광고 검수 신고 접수완료.", "warning");
-                      }}
+                      style={{ padding: '6px 12px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '5px' }}
+                      onClick={() => handleDeleteCampaign(ad)}
                     >
-                      신고
+                      <Trash2 size={13} />
+                      삭제
                     </button>
                   </div>
                 )}
