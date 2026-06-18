@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Sun,
@@ -11,7 +11,8 @@ import {
   DollarSign,
   LayoutDashboard,
   FileSignature,
-  MessageSquare
+  MessageSquare,
+  X
 } from 'lucide-react';
 
 export default function LandingView({
@@ -21,6 +22,7 @@ export default function LandingView({
   addToast
 }) {
   const navigate = useNavigate();
+  const [showPrivacy, setShowPrivacy] = useState(false);
   return (
     <div className="landing-container" style={{
       minHeight: '100vh',
@@ -190,12 +192,98 @@ export default function LandingView({
           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>&copy; 2026 Ad-Connect Inc. All rights reserved.</span>
           <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: 'var(--text-muted)' }}>
             <span style={{ cursor: 'pointer' }} onClick={() => addToast("이용약관 안내 준비 중입니다.", "info")}>이용약관</span>
-            <span style={{ cursor: 'pointer' }} onClick={() => addToast("개인정보처리방침 안내 준비 중입니다.", "info")}>개인정보처리방침</span>
-            <span style={{ cursor: 'pointer' }} onClick={() => addToast("고객센터 연락처: support@ad-connect.com", "info")}>고객지원</span>
+            <span style={{ cursor: 'pointer' }} onClick={() => setShowPrivacy(true)}>개인정보처리방침</span>
+            <span style={{ cursor: 'pointer' }} onClick={() => addToast("고객지원 전화: 051-123-4567", "info")}>고객지원</span>
           </div>
         </div>
 
       </div>
+
+      {/* 개인정보처리방침 모달 */}
+      {showPrivacy && (
+        <div
+          onClick={() => setShowPrivacy(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}
+        >
+          <div
+            className="glass-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: '100%', maxWidth: '720px', maxHeight: '85vh', overflowY: 'auto', textAlign: 'left' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <h2 style={{ fontSize: '20px' }}>개인정보처리방침</h2>
+              <button onClick={() => setShowPrivacy(false)} style={{ background: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                <X size={22} />
+              </button>
+            </div>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '20px' }}>
+              주식회사 Ad-Connect(이하 "회사")는 「개인정보 보호법」 등 관련 법령을 준수하며, 이용자의 개인정보를 다음과 같이 처리합니다. (시행일: 2026년 1월 1일)
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', fontSize: '13px', lineHeight: 1.7, color: 'var(--text-secondary)' }}>
+              <section>
+                <h4 style={{ color: 'white', marginBottom: '6px' }}>제1조 (개인정보의 처리 목적)</h4>
+                회사는 다음의 목적을 위하여 개인정보를 처리하며, 목적 외의 용도로는 이용하지 않습니다.
+                <ul style={{ margin: '6px 0 0 18px' }}>
+                  <li>회원 가입 의사 확인, 본인 식별·인증, 회원자격 유지·관리</li>
+                  <li>광고주–크리에이터 매칭 서비스 제공, 계약 체결 및 에스크로 정산</li>
+                  <li>고객 문의 응대, 분쟁 처리 및 공지사항 전달</li>
+                  <li>이용자 동의 시 신규 서비스 안내 및 마케팅·이벤트 정보 제공</li>
+                </ul>
+              </section>
+
+              <section>
+                <h4 style={{ color: 'white', marginBottom: '6px' }}>제2조 (개인정보의 처리 및 보유 기간)</h4>
+                회사는 법령에 따른 보유·이용 기간 또는 이용자로부터 동의받은 기간 내에서 개인정보를 처리·보유합니다.
+                <ul style={{ margin: '6px 0 0 18px' }}>
+                  <li>회원 정보: 회원 탈퇴 시까지 (관련 분쟁 발생 시 종료 시까지)</li>
+                  <li>계약·결제·정산 기록: 「전자상거래법」에 따라 5년</li>
+                  <li>소비자 불만 또는 분쟁 처리 기록: 3년</li>
+                  <li>접속 로그 기록: 「통신비밀보호법」에 따라 3개월</li>
+                </ul>
+              </section>
+
+              <section>
+                <h4 style={{ color: 'white', marginBottom: '6px' }}>제3조 (개인정보의 제3자 제공)</h4>
+                회사는 원칙적으로 이용자의 개인정보를 외부에 제공하지 않습니다. 다만 매칭 성사 시 계약 이행에 필요한 범위에서 상대 당사자에게 닉네임·채널 정보 등 최소한의 정보가 제공되며, 법령에 근거가 있거나 이용자의 별도 동의가 있는 경우에 한해 제공합니다.
+              </section>
+
+              <section>
+                <h4 style={{ color: 'white', marginBottom: '6px' }}>제4조 (개인정보 처리의 위탁)</h4>
+                회사는 원활한 서비스 운영을 위해 다음과 같이 업무를 위탁하고 있으며, 수탁자가 관련 법령을 준수하도록 관리·감독합니다.
+                <ul style={{ margin: '6px 0 0 18px' }}>
+                  <li>토스페이먼츠(PortOne): 결제 및 에스크로 정산 처리</li>
+                  <li>Amazon Web Services / Render: 서버 인프라 운영 및 데이터 보관</li>
+                  <li>EmailJS: 인증번호(OTP) 및 알림 메일 발송</li>
+                </ul>
+              </section>
+
+              <section>
+                <h4 style={{ color: 'white', marginBottom: '6px' }}>제5조 (개인정보의 파기 절차 및 방법)</h4>
+                보유 기간이 경과하거나 처리 목적이 달성된 개인정보는 지체 없이 파기합니다. 전자적 파일은 복구가 불가능한 방법으로 영구 삭제하며, 종이 문서는 분쇄하거나 소각하여 파기합니다.
+              </section>
+
+              <section>
+                <h4 style={{ color: 'white', marginBottom: '6px' }}>제6조 (이용자의 권리와 행사 방법)</h4>
+                이용자는 언제든지 본인의 개인정보에 대한 열람·정정·삭제·처리정지를 요구할 수 있습니다. 마이페이지에서 직접 처리하거나 개인정보 보호책임자에게 서면·전화·이메일로 요청할 수 있으며, 회사는 지체 없이 조치합니다.
+              </section>
+
+              <section>
+                <h4 style={{ color: 'white', marginBottom: '6px' }}>제7조 (개인정보 보호책임자)</h4>
+                회사는 개인정보 처리에 관한 업무를 총괄하고 이용자의 민원을 처리하기 위해 아래와 같이 보호책임자를 지정하고 있습니다.
+                <ul style={{ margin: '6px 0 0 18px' }}>
+                  <li>개인정보 보호책임자: 김보안 (CISO)</li>
+                  <li>연락처: 051-123-4567 / privacy@ad-connect.com</li>
+                </ul>
+              </section>
+            </div>
+
+            <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn btn-primary" onClick={() => setShowPrivacy(false)}>확인</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
