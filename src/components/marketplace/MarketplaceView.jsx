@@ -378,25 +378,28 @@ export default function MarketplaceView({
                         ad.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         ad.description.toLowerCase().includes(searchQuery.toLowerCase());
                         
-    // Subscriber range
+    // Subscriber range — parse the required count numerically so any input
+    // format (e.g. "50,000+", "50000", "5만") buckets correctly.
     let matchSub = true;
     if (filterSubscriber !== 'all') {
-      if (filterSubscriber === 'small' && !ad.subscribersRequired.includes('10,000+')) matchSub = false;
-      if (filterSubscriber === 'mid' && !ad.subscribersRequired.includes('30,000+') && !ad.subscribersRequired.includes('50,000+')) matchSub = false;
-      if (filterSubscriber === 'large' && !ad.subscribersRequired.includes('100,000+')) matchSub = false;
+      const req = parseInt(String(ad.subscribersRequired || '').replace(/[^0-9]/g, ''), 10) || 0;
+      if (filterSubscriber === 'small' && !(req < 30000)) matchSub = false;
+      if (filterSubscriber === 'mid' && !(req >= 30000 && req < 100000)) matchSub = false;
+      if (filterSubscriber === 'large' && !(req >= 100000)) matchSub = false;
     }
-    
+
     // Budget range
     let matchBudget = true;
     if (filterBudget !== 'all') {
-      const budgetNum = parseInt(ad.budget.replace(/,/g, ''));
+      const budgetNum = parseInt(String(ad.budget || '').replace(/[^0-9]/g, ''), 10) || 0;
       if (filterBudget === 'under2' && budgetNum >= 2000000) matchBudget = false;
       if (filterBudget === '2to5' && (budgetNum < 2000000 || budgetNum > 5000000)) matchBudget = false;
       if (filterBudget === 'over5' && budgetNum <= 5000000) matchBudget = false;
     }
 
-    // Genre
-    const matchGenre = filterGenre === 'all' || ad.genre === filterGenre;
+    // Genre — match against both category and free-text genre (substring)
+    const genreHay = `${ad.category || ''} ${ad.genre || ''}`;
+    const matchGenre = filterGenre === 'all' || genreHay.includes(filterGenre);
 
     return matchSearch && matchSub && matchBudget && matchGenre;
   }).sort((a, b) => {
@@ -456,11 +459,13 @@ export default function MarketplaceView({
                 value={filterGenre}
                 onChange={e => setFilterGenre(e.target.value)}
               >
-                <option value="all">콘텐츠 장르</option>
-                <option value="테크">테크</option>
+                <option value="all">콘텐츠 장르 (전체)</option>
+                <option value="테크">테크/IT</option>
+                <option value="뷰티">뷰티/헬스</option>
                 <option value="게임">게임</option>
+                <option value="요리">요리/푸드</option>
+                <option value="일상">일상/여행</option>
                 <option value="브이로그">브이로그</option>
-                <option value="요리">요리</option>
               </select>
             </div>
 
