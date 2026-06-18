@@ -1384,9 +1384,10 @@ export default function App() {
           } />
 
           <Route path="/marketplace" element={
-            <MarketplaceView 
+            <MarketplaceView
               userRole={userRole}
               userName={userName}
+              userEmail={userEmail}
               isGuestMode={isGuestMode}
               ads={ads}
               setAds={setAds}

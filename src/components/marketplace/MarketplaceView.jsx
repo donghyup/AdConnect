@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, SlidersHorizontal, Megaphone, AlertTriangle, Play, Download } from 'lucide-react';
+import { Search, SlidersHorizontal, Megaphone, AlertTriangle, Play, Download, Users, X } from 'lucide-react';
 
 export default function MarketplaceView({
   userRole,
   userName,
+  userEmail,
   isGuestMode,
   ads,
   setAds,
@@ -30,6 +31,114 @@ export default function MarketplaceView({
   token
 }) {
   const navigate = useNavigate();
+
+  // Applicants modal state (advertiser viewing who applied to their campaign)
+  const [applicantsModal, setApplicantsModal] = useState(null); // { campaign, applicants, loading }
+
+  const authHeaders = () => ({
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  });
+
+  // Creator applies to a campaign -> persist to backend, then open the chat room
+  const handleApply = async (ad) => {
+    if (isGuestMode) {
+      addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
+      return;
+    }
+
+    if (isBackendConnected) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/applications`, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({
+            campaignId: ad.id,
+            partnerEmail: userEmail,
+            partnerName: userName,
+            message: `${userName} 크리에이터가 '${ad.title}' 캠페인에 지원했습니다.`
+          })
+        });
+        if (!res.ok) {
+          addToast("지원서 전송 중 오류가 발생했습니다.", "error");
+          return;
+        }
+        addToast("매칭 지원서가 광고주에게 전달되었습니다.", "success");
+      } catch (err) {
+        addToast("백엔드 통신 중 오류가 발생했습니다.", "error");
+        return;
+      }
+    } else {
+      addToast("이메일 및 카카오톡으로 매칭 지원서가 광고주에게 전달되었습니다. [모의 모드]", "success");
+    }
+
+    // Open / create the negotiation chat room (UX unchanged)
+    const exists = chatRooms.find(r => r.id === ad.id);
+    if (!exists) {
+      const newRoom = {
+        id: ad.id,
+        name: `${ad.company} (캠페인 매칭 협상)`,
+        avatar: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80",
+        lastMsg: "지원해 주셔서 감사합니다! 협의를 시작해 보시죠.",
+        time: "방금 전",
+        unread: 1,
+        online: true,
+        messages: [
+          { sender: 'them', text: `안녕하세요 크리에이터님! 등록하신 지원서 조회가 승인되었습니다. '${ad.title}' 캠페인 협업 조건 조율을 시작합니다.`, time: '방금 전' }
+        ]
+      };
+      setChatRooms([newRoom, ...chatRooms]);
+    }
+    setActiveChatId(ad.id);
+    navigate('/chat');
+  };
+
+  // Advertiser opens the applicant list for one of their campaigns
+  const openApplicants = async (ad) => {
+    if (!isBackendConnected) {
+      setApplicantsModal({ campaign: ad, applicants: [], loading: false, mock: true });
+      return;
+    }
+    setApplicantsModal({ campaign: ad, applicants: [], loading: true });
+    try {
+      const res = await fetch(`${API_BASE_URL}/applications/campaign/${ad.id}`, { headers: authHeaders() });
+      const data = res.ok ? await res.json() : [];
+      setApplicantsModal({ campaign: ad, applicants: data, loading: false });
+    } catch (err) {
+      addToast("지원자 목록을 불러오지 못했습니다.", "error");
+      setApplicantsModal({ campaign: ad, applicants: [], loading: false });
+    }
+  };
+
+  // Advertiser accepts / rejects an applicant
+  const updateApplicantStatus = async (applicationId, status) => {
+    if (!isBackendConnected) {
+      setApplicantsModal(prev => prev ? {
+        ...prev,
+        applicants: prev.applicants.map(a => a.id === applicationId ? { ...a, status } : a)
+      } : prev);
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE_URL}/applications/${applicationId}/status`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ status })
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setApplicantsModal(prev => prev ? {
+          ...prev,
+          applicants: prev.applicants.map(a => a.id === applicationId ? updated : a)
+        } : prev);
+        addToast(`지원자를 '${status}' 처리했습니다.`, status === '수락' ? 'success' : 'info');
+      } else {
+        addToast("상태 변경에 실패했습니다.", "error");
+      }
+    } catch (err) {
+      addToast("백엔드 통신 중 오류가 발생했습니다.", "error");
+    }
+  };
   // Filter & Sort campaign list
   const filteredAds = ads.filter(ad => {
     // Role filter: Admins can see all, Creators/Advertisers see approved/pending accordingly
@@ -250,38 +359,24 @@ export default function MarketplaceView({
                 
                 {/* Interactions based on role */}
                 {userRole === 'creator' && ad.status === '승인 완료' && (
-                  <button 
-                    className="btn btn-primary" 
+                  <button
+                    className="btn btn-primary"
                     style={{ padding: '8px 16px', fontSize: '12px' }}
-                    onClick={() => {
-                      if (isGuestMode) {
-                        addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                        return;
-                      }
-                      addToast("이메일 및 카카오톡으로 매칭 지원서가 광고주에게 전달되었습니다.", "success");
-                      
-                      // Realtime chat creation simulator
-                      const exists = chatRooms.find(r => r.id === ad.id);
-                      if (!exists) {
-                        const newRoom = {
-                          id: ad.id,
-                          name: `${ad.company} (캠페인 매칭 협상)`,
-                          avatar: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80",
-                          lastMsg: "지원해 주셔서 감사합니다! 협의를 시작해 보시죠.",
-                          time: "방금 전",
-                          unread: 1,
-                          online: true,
-                          messages: [
-                            { sender: 'them', text: `안녕하세요 크리에이터님! 등록하신 지원서 조회가 승인되었습니다. '${ad.title}' 캠페인 협업 조건 조율을 시작합니다.`, time: '방금 전' }
-                          ]
-                        };
-                        setChatRooms([newRoom, ...chatRooms]);
-                        setActiveChatId(ad.id);
-                      }
-                      navigate('/chat');
-                    }}
+                    onClick={() => handleApply(ad)}
                   >
                     캠페인 매칭 지원
+                  </button>
+                )}
+
+                {/* Advertiser: view applicants for their own campaign */}
+                {userRole === 'advertiser' && ad.company === userName && (
+                  <button
+                    className="btn btn-secondary"
+                    style={{ padding: '8px 16px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    onClick={() => openApplicants(ad)}
+                  >
+                    <Users size={14} />
+                    지원자 보기
                   </button>
                 )}
 
@@ -348,6 +443,78 @@ export default function MarketplaceView({
           ))
         )}
       </div>
+
+      {/* Applicants Modal (Advertiser) */}
+      {applicantsModal && (
+        <div
+          className="payment-modal-overlay"
+          onClick={() => setApplicantsModal(null)}
+        >
+          <div
+            className="glass-card"
+            style={{ width: '92%', maxWidth: '560px', maxHeight: '80vh', overflowY: 'auto' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+              <div>
+                <h3 style={{ marginBottom: '4px' }}>지원자 목록</h3>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{applicantsModal.campaign.title}</p>
+              </div>
+              <button onClick={() => setApplicantsModal(null)} style={{ background: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {applicantsModal.loading ? (
+              <p style={{ color: 'var(--text-muted)', padding: '24px 0', textAlign: 'center' }}>지원자 정보를 불러오는 중...</p>
+            ) : applicantsModal.applicants.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-muted)' }}>
+                <Users size={36} style={{ color: 'rgba(255,255,255,0.15)', marginBottom: '8px' }} />
+                <p style={{ fontSize: '14px' }}>
+                  {applicantsModal.mock ? '백엔드 미연결 상태에서는 지원자 조회가 제한됩니다. [모의 모드]' : '아직 지원한 크리에이터가 없습니다.'}
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
+                {applicantsModal.applicants.map(app => (
+                  <div
+                    key={app.id}
+                    style={{ padding: '14px', borderRadius: '10px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <strong style={{ fontSize: '14px' }}>{app.partnerName}</strong>
+                      <span className={`badge ${app.status === '수락' ? 'badge-emerald' : app.status === '거절' ? 'badge-rose' : 'badge-warning'}`}>
+                        {app.status}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>{app.partnerEmail}</p>
+                    {app.message && <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{app.message}</p>}
+
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                      <button
+                        className="btn btn-success"
+                        style={{ padding: '5px 12px', fontSize: '11px' }}
+                        disabled={app.status === '수락'}
+                        onClick={() => updateApplicantStatus(app.id, '수락')}
+                      >
+                        수락
+                      </button>
+                      <button
+                        className="btn btn-danger"
+                        style={{ padding: '5px 12px', fontSize: '11px' }}
+                        disabled={app.status === '거절'}
+                        onClick={() => updateApplicantStatus(app.id, '거절')}
+                      >
+                        거절
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
