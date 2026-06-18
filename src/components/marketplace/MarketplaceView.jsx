@@ -138,6 +138,35 @@ export default function MarketplaceView({
     navigate('/chat');
   };
 
+  // Admin approves / rejects a campaign — persisted to the backend so the
+  // decision is visible to everyone and survives a refresh (no longer local-only).
+  const updateCampaignStatus = async (ad, status, successMsg, toastType = 'success') => {
+    if (isGuestMode) {
+      addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
+      return;
+    }
+    if (isBackendConnected) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/campaigns/${ad.id}/status`, {
+          method: 'PATCH',
+          headers: authHeaders(),
+          body: JSON.stringify({ status })
+        });
+        if (res.ok) {
+          setAds(ads.map(a => a.id === ad.id ? { ...a, status } : a));
+          addToast(successMsg, toastType);
+        } else {
+          addToast("상태 변경에 실패했습니다.", "error");
+        }
+      } catch (err) {
+        addToast("백엔드 통신 중 오류가 발생했습니다.", "error");
+      }
+    } else {
+      setAds(ads.map(a => a.id === ad.id ? { ...a, status } : a));
+      addToast(`${successMsg} [모의 모드]`, toastType);
+    }
+  };
+
   // Advertiser opens the applicant list for one of their campaigns
   const openApplicants = async (ad) => {
     if (!isBackendConnected) {
@@ -478,31 +507,17 @@ export default function MarketplaceView({
                   <div style={{ display: 'flex', gap: '8px' }}>
                     {ad.status === '승인 대기' && (
                       <>
-                        <button 
-                          className="btn btn-success" 
+                        <button
+                          className="btn btn-success"
                           style={{ padding: '6px 12px', fontSize: '11px' }}
-                          onClick={() => {
-                            if (isGuestMode) {
-                              addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                              return;
-                            }
-                            setAds(ads.map(a => a.id === ad.id ? { ...a, status: '승인 완료' } : a));
-                            addToast("캠페인 승인이 완료되었습니다.", "success");
-                          }}
+                          onClick={() => updateCampaignStatus(ad, '승인 완료', "캠페인 승인이 완료되었습니다.")}
                         >
                           승인
                         </button>
-                        <button 
-                          className="btn btn-danger" 
+                        <button
+                          className="btn btn-danger"
                           style={{ padding: '6px 12px', fontSize: '11px' }}
-                          onClick={() => {
-                            if (isGuestMode) {
-                              addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                              return;
-                            }
-                            setAds(ads.map(a => a.id === ad.id ? { ...a, status: '반려' } : a));
-                            addToast("캠페인이 반려 처리되었습니다.", "error");
-                          }}
+                          onClick={() => updateCampaignStatus(ad, '반려', "캠페인이 반려 처리되었습니다.", "error")}
                         >
                           반려
                         </button>
