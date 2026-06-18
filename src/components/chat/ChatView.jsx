@@ -8,6 +8,9 @@ export default function ChatView({
   activeChatId,
   setActiveChatId,
   userEmail,
+  userRole,
+  userName,
+  setActiveContract,
   ads,
   setPaymentAmount,
   chatInputText,
@@ -89,12 +92,22 @@ export default function ChatView({
                   className="btn btn-secondary"
                   style={{ padding: '8px 16px', fontSize: '12px' }}
                   onClick={() => {
-                    // Prefer the room's own campaign/budget (real 1:1 rooms carry it),
-                    // falling back to a campaign lookup for legacy mock rooms.
+                    // Build the contract from the matched campaign so the contract
+                    // paper reflects the real project, parties and amount.
                     const ad = ads.find(a => a.id === (activeRoom.campaignId || activeChatId));
-                    const amount = activeRoom.budget || (ad && ad.budget);
-                    if (amount) {
-                      setPaymentAmount(amount);
+                    const amount = activeRoom.budget || (ad && ad.budget) || '';
+                    if (amount) setPaymentAmount(amount);
+
+                    if (setActiveContract) {
+                      setActiveContract({
+                        campaignId: activeRoom.campaignId || activeChatId,
+                        projectName: ad?.title || activeRoom.name,
+                        company: ad?.company || (userRole === 'advertiser' ? userName : activeRoom.partnerName),
+                        creatorName: userRole === 'advertiser' ? activeRoom.partnerName : userName,
+                        budget: amount,
+                        duration: ad?.duration || '',
+                        category: ad?.category || ad?.genre || ''
+                      });
                     }
                     navigate('/contracts');
                     addToast("연계 계약서 작성 화면으로 이동했습니다.", "success");

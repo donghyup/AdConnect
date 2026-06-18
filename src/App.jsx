@@ -465,6 +465,9 @@ export default function App() {
   const [paymentAmount, setPaymentAmount] = useState("3,500,000");
   const [paymentMethod, setPaymentMethod] = useState("card"); // card | toss
 
+  // Contract generated from the matched campaign (set when opening a contract from chat)
+  const [activeContract, setActiveContract] = useState(null);
+
   // Advanced Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [filterSubscriber, setFilterSubscriber] = useState('all');
@@ -1473,6 +1476,9 @@ export default function App() {
               activeChatId={activeChatId}
               setActiveChatId={setActiveChatId}
               userEmail={userEmail}
+              userRole={userRole}
+              userName={userName}
+              setActiveContract={setActiveContract}
               ads={ads}
               setPaymentAmount={setPaymentAmount}
               chatInputText={chatInputText}
@@ -1483,8 +1489,9 @@ export default function App() {
           } />
 
           <Route path="/contracts" element={
-            <ContractsView 
+            <ContractsView
               paymentAmount={paymentAmount}
+              activeContract={activeContract}
               userRole={userRole}
               isGuestMode={isGuestMode}
               setShowPaymentModal={setShowPaymentModal}

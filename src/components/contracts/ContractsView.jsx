@@ -3,6 +3,7 @@ import { ShieldCheck, FileText } from 'lucide-react';
 
 export default function ContractsView({
   paymentAmount,
+  activeContract,
   userRole,
   isGuestMode,
   setShowPaymentModal,
@@ -18,6 +19,17 @@ export default function ContractsView({
 }) {
   const sigCanvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
+
+  // Contract details come from the matched campaign when available; otherwise
+  // sensible placeholders so the page still renders if opened directly.
+  const c = activeContract || {};
+  const projectName = c.projectName || '매칭된 캠페인 (채팅에서 계약을 시작하세요)';
+  const company = c.company || '광고주';
+  const creatorName = c.creatorName || userName;
+  const duration = c.duration || '협의 후 확정';
+  const contentForm = c.category
+    ? `${c.category} · 유튜브 영상 1편 + 고정 댓글 링크 삽입`
+    : '유튜브 15분 내외 고품질 웰메이드 영상 1편 + 고정 댓글 링크 삽입';
 
   // Canvas drawing logic
   const startDrawing = (e) => {
@@ -121,19 +133,19 @@ export default function ContractsView({
                   <tbody>
                     <tr>
                       <td className="label">프로젝트 명</td>
-                      <td>네오핏 Pro 스마트워치 신제품 웰메이드 리뷰 및 브랜디드 가이드</td>
+                      <td>{projectName}</td>
                     </tr>
                     <tr>
                       <td className="label">콘텐츠 형태</td>
-                      <td>유튜브 15분 내외 고품질 웰메이드 영상 1편 + 고정 댓글 링크 삽입</td>
+                      <td>{contentForm}</td>
                     </tr>
                     <tr>
                       <td className="label">계약 대금</td>
                       <td>₩{paymentAmount} (일시불, 원천세 및 수수료 3% 별도 공제 후 정산)</td>
                     </tr>
                     <tr>
-                      <td className="label">제출 및 송출일</td>
-                      <td>2026년 06월 01일 오후 6시 이전</td>
+                      <td className="label">계약 기간</td>
+                      <td>{duration}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -157,11 +169,11 @@ export default function ContractsView({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', marginTop: '60px', borderTop: '1px solid var(--border-color)', paddingTop: '24px' }}>
                 <div>
                   <strong>광고주 ('갑'):</strong>
-                  <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>네오스마트 주식회사 대표이사 김민준 (서명 생략 - 법인 공동인증 완료)</p>
+                  <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>{company} (서명 생략 - 법인 공동인증 완료)</p>
                 </div>
                 <div>
                   <strong>크리에이터 ('을'):</strong>
-                  <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>{userName} (아래 서명 날인)</p>
+                  <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>{creatorName} (아래 서명 날인)</p>
                   
                   {signedContract ? (
                     <div style={{ marginTop: '12px', background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
