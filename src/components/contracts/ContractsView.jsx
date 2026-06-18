@@ -83,31 +83,23 @@ export default function ContractsView({
   const currentStatus = settlement?.status || '예치 대기';
   const stageIndex = SETTLEMENT_STAGES.indexOf(currentStatus);
 
-  const handleDeposit = async () => {
+  // Deposit goes through the Toss test payment. The deposit context is stashed so
+  // that, after the payment redirect, App.confirmPayment marks the settlement
+  // '예치 완료'. (Old direct-deposit kept as fallback when no payment is possible.)
+  const handleDeposit = () => {
     if (!guardAction()) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/settlements/deposit`, {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({
-          applicationId,
-          campaignId: activeContract.campaignId,
-          projectName: activeContract.projectName,
-          advertiserName: activeContract.company,
-          creatorName: activeContract.creatorName,
-          creatorEmail: activeContract.creatorEmail,
-          amount: paymentAmount
-        })
-      });
-      if (res.ok) {
-        setSettlement(await res.json());
-        addToast("에스크로 보증금이 안전 정산 계좌에 예치되었습니다.", "success");
-      } else {
-        addToast("예치 처리에 실패했습니다.", "error");
-      }
-    } catch (err) {
-      addToast("백엔드 통신 중 오류가 발생했습니다.", "error");
-    }
+      localStorage.setItem('pendingDeposit', JSON.stringify({
+        applicationId,
+        campaignId: activeContract.campaignId,
+        projectName: activeContract.projectName,
+        advertiserName: activeContract.company,
+        creatorName: activeContract.creatorName,
+        creatorEmail: activeContract.creatorEmail,
+        amount: paymentAmount
+      }));
+    } catch (e) { /* ignore */ }
+    setShowPaymentModal(true);
   };
 
   const handleSubmitWork = async () => {
@@ -239,13 +231,7 @@ export default function ContractsView({
                   <button 
                     className="btn btn-success" 
                     style={{ padding: '6px 12px', fontSize: '12px' }}
-                    onClick={() => {
-                      if (isGuestMode) {
-                        addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
-                        return;
-                      }
-                      setShowPaymentModal(true);
-                    }}
+                    onClick={handleDeposit}
                   >
                     Toss Payments 보증금 결제
                   </button>

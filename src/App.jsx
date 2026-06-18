@@ -493,8 +493,15 @@ export default function App() {
   const [paymentAmount, setPaymentAmount] = useState("3,500,000");
   const [paymentMethod, setPaymentMethod] = useState("card"); // card | toss
 
-  // Contract generated from the matched campaign (set when opening a contract from chat)
-  const [activeContract, setActiveContract] = useState(null);
+  // Contract generated from the matched campaign (set when opening a contract from chat).
+  // Persisted so it survives the Toss payment redirect/reload.
+  const [activeContract, setActiveContract] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('activeContract') || 'null'); } catch (e) { return null; }
+  });
+  useEffect(() => {
+    if (activeContract) localStorage.setItem('activeContract', JSON.stringify(activeContract));
+    else localStorage.removeItem('activeContract');
+  }, [activeContract]);
 
   // Advanced Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -517,9 +524,45 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
+  // After a successful payment, mark the linked settlement as 예치 완료 and notify.
+  // The deposit context was stashed in localStorage before the Toss redirect.
+  const finalizeSettlementDeposit = async () => {
+    let pending = null;
+    try { pending = JSON.parse(localStorage.getItem('pendingDeposit') || 'null'); } catch (e) { pending = null; }
+    if (!pending || !pending.applicationId || !isBackendConnected) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/settlements/deposit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(pending)
+      });
+      if (res.ok) {
+        addToast("에스크로 정산이 '예치 완료'로 전환되었습니다.", "success");
+        // notify the creator that the deposit is secured
+        if (pending.creatorEmail) {
+          fetch(`${API_BASE_URL}/notifications`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({
+              recipientEmail: pending.creatorEmail,
+              text: `'${pending.projectName || '캠페인'}' 보증금이 에스크로에 예치되었습니다. 작업을 진행해 주세요.`,
+              type: 'settlement',
+              roomId: pending.applicationId
+            })
+          }).catch(() => {});
+        }
+        localStorage.removeItem('pendingDeposit');
+        navigate('/contracts');
+      }
+    } catch (e) {
+      addToast("정산 예치 처리 중 오류가 발생했습니다.", "error");
+    }
+  };
+
   // Toss Payments Confirmation
   const confirmPayment = async (paymentKey, orderId, amount) => {
     addToast("결제 승인을 요청 중입니다...", "info");
+    let succeeded = false;
     if (isBackendConnected) {
       try {
         const response = await fetch(`${API_BASE_URL}/payments/confirm`, {
@@ -532,17 +575,9 @@ export default function App() {
         });
         const data = await response.json();
         if (response.ok) {
+          succeeded = true;
           addToast(`토스페이먼츠 ${Number(amount).toLocaleString('ko-KR')}원 에스크로 결제가 완료되었습니다.`, "success");
           addToast("정산 안전 예치금으로 안전하게 보관 처리되었습니다.", "info");
-          
-          const notif = {
-            id: Date.now(),
-            text: `캠페인 예산 ₩${Number(amount).toLocaleString('ko-KR')}원 결제가 완료되었습니다. 정산 보증금이 지급 대기 중입니다.`,
-            type: 'match',
-            time: '방금 전',
-            unread: true
-          };
-          setNotifications(prev => [notif, ...prev]);
         } else {
           addToast(`결제 승인 실패: ${data.message || '알 수 없는 오류'}`, "error");
         }
@@ -550,17 +585,14 @@ export default function App() {
         addToast("결제 승인 중 통신 오류가 발생했습니다.", "error");
       }
     } else {
+      succeeded = true;
       addToast(`[Mock] 토스페이먼츠 ${Number(amount).toLocaleString('ko-KR')}원 에스크로 결제가 무사히 완료되었습니다.`, "success");
-      addToast("정산 안전 예치금으로 관리자 계좌에 보관 처리되었습니다. [모의 모드]", "info");
-      
-      const notif = {
-        id: Date.now(),
-        text: `캠페인 예산 ₩${Number(amount).toLocaleString('ko-KR')}원 결제가 완료되었습니다. [모의 모드]`,
-        type: 'match',
-        time: '방금 전',
-        unread: true
-      };
-      setNotifications(prev => [notif, ...prev]);
+    }
+
+    if (succeeded) {
+      await finalizeSettlementDeposit();
+    } else {
+      localStorage.removeItem('pendingDeposit');
     }
     window.history.replaceState({}, document.title, window.location.pathname);
   };
@@ -573,7 +605,12 @@ export default function App() {
     const amount = params.get('amount');
 
     if (paymentStatus === 'success' && paymentKey && orderId && amount) {
-      confirmPayment(paymentKey, orderId, amount);
+      // If a settlement deposit is pending, wait until the backend is reachable so
+      // the deposit is actually recorded (the effect re-runs when it connects).
+      const hasPending = !!localStorage.getItem('pendingDeposit');
+      if (isBackendConnected || !hasPending) {
+        confirmPayment(paymentKey, orderId, amount);
+      }
     } else if (paymentStatus === 'fail') {
       const msg = params.get('message') || '결제 중 오류가 발생했거나 취소되었습니다.';
       addToast(`결제 실패: ${msg}`, 'error');
