@@ -446,8 +446,11 @@ export default function MarketplaceView({
                 <input type="text" name="subscribers" className="input-control" placeholder="예: 50,000+" required />
               </div>
               <div className="form-group">
-                <label>기한 설정</label>
-                <input type="text" name="duration" className="input-control" placeholder="예: 2026-06-01 ~ 2026-07-01" required />
+                <label>기한 설정 (시작 ~ 종료)</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input type="date" name="durationStart" className="input-control" required />
+                  <input type="date" name="durationEnd" className="input-control" required />
+                </div>
               </div>
             </div>
 

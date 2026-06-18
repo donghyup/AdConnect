@@ -920,7 +920,9 @@ export default function App() {
       category: formData.get('category'),
       budget: Number(formData.get('budget')).toLocaleString('ko-KR'),
       subscribersRequired: formData.get('subscribers'),
-      duration: formData.get('duration'),
+      duration: (formData.get('durationStart') && formData.get('durationEnd'))
+        ? `${formData.get('durationStart')} ~ ${formData.get('durationEnd')}`
+        : (formData.get('duration') || ''),
       description: formData.get('description'),
       genre: formData.get('genre') || '기타',
       region: formData.get('region') || '전국'
