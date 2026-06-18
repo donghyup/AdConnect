@@ -100,10 +100,12 @@ export default function ChatView({
 
                     if (setActiveContract) {
                       setActiveContract({
+                        applicationId: activeRoom.id,
                         campaignId: activeRoom.campaignId || activeChatId,
                         projectName: ad?.title || activeRoom.name,
                         company: ad?.company || (userRole === 'advertiser' ? userName : activeRoom.partnerName),
                         creatorName: userRole === 'advertiser' ? activeRoom.partnerName : userName,
+                        creatorEmail: userRole === 'advertiser' ? activeRoom.partnerEmail : userEmail,
                         budget: amount,
                         duration: ad?.duration || '',
                         category: ad?.category || ad?.genre || ''

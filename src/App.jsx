@@ -1493,14 +1493,18 @@ export default function App() {
               paymentAmount={paymentAmount}
               activeContract={activeContract}
               userRole={userRole}
+              userName={userName}
+              userEmail={userEmail}
               isGuestMode={isGuestMode}
+              isBackendConnected={isBackendConnected}
+              API_BASE_URL={API_BASE_URL}
+              token={token}
               setShowPaymentModal={setShowPaymentModal}
               signedContract={signedContract}
               signatureSaved={signatureSaved}
               setSignatureSaved={setSignatureSaved}
               saveSignature={saveSignature}
               handleContractSubmit={handleContractSubmit}
-              userName={userName}
               theme={theme}
               addToast={addToast}
             />

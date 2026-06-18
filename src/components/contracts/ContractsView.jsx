@@ -1,11 +1,18 @@
-import React, { useState, useRef } from 'react';
-import { ShieldCheck, FileText } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { ShieldCheck, FileText, Lock, Upload, CheckCircle2, Banknote } from 'lucide-react';
+
+const SETTLEMENT_STAGES = ['예치 대기', '예치 완료', '작업 완료', '정산 완료'];
 
 export default function ContractsView({
   paymentAmount,
   activeContract,
   userRole,
+  userName,
+  userEmail,
   isGuestMode,
+  isBackendConnected,
+  API_BASE_URL,
+  token,
   setShowPaymentModal,
   signedContract,
   signatureSaved,
@@ -13,12 +20,104 @@ export default function ContractsView({
   saveSignature,
   clearSignature,
   handleContractSubmit,
-  userName,
   theme,
   addToast
 }) {
   const sigCanvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
+
+  // Escrow settlement lifecycle (예치 대기 → 예치 완료 → 작업 완료 → 정산 완료)
+  const [settlement, setSettlement] = useState(null);
+  const applicationId = activeContract?.applicationId;
+  const authHeaders = () => ({
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  });
+
+  useEffect(() => {
+    if (isBackendConnected && applicationId) {
+      fetch(`${API_BASE_URL}/settlements/application/${applicationId}`, { headers: authHeaders() })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => setSettlement(data))
+        .catch(() => {});
+    } else {
+      setSettlement(null);
+    }
+  }, [isBackendConnected, applicationId, API_BASE_URL, token]);
+
+  const guardAction = () => {
+    if (isGuestMode) {
+      addToast("둘러보기 모드에서는 읽기 전용입니다. 이 기능을 사용하려면 로그인해 주세요.", "warning");
+      return false;
+    }
+    if (!isBackendConnected || !applicationId) {
+      addToast("정산을 진행하려면 채팅에서 매칭된 계약으로 진입해 주세요. (백엔드 연결 필요)", "warning");
+      return false;
+    }
+    return true;
+  };
+
+  const currentStatus = settlement?.status || '예치 대기';
+  const stageIndex = SETTLEMENT_STAGES.indexOf(currentStatus);
+
+  const handleDeposit = async () => {
+    if (!guardAction()) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/settlements/deposit`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          applicationId,
+          campaignId: activeContract.campaignId,
+          projectName: activeContract.projectName,
+          advertiserName: activeContract.company,
+          creatorName: activeContract.creatorName,
+          creatorEmail: activeContract.creatorEmail,
+          amount: paymentAmount
+        })
+      });
+      if (res.ok) {
+        setSettlement(await res.json());
+        addToast("에스크로 보증금이 안전 정산 계좌에 예치되었습니다.", "success");
+      } else {
+        addToast("예치 처리에 실패했습니다.", "error");
+      }
+    } catch (err) {
+      addToast("백엔드 통신 중 오류가 발생했습니다.", "error");
+    }
+  };
+
+  const handleSubmitWork = async () => {
+    if (!guardAction() || !settlement) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/settlements/${settlement.id}/submit`, { method: 'PATCH', headers: authHeaders() });
+      const data = await res.json();
+      if (res.ok) {
+        setSettlement(data);
+        addToast("작업물 제출이 완료되었습니다. 광고주 승인을 기다립니다.", "success");
+      } else {
+        addToast(data.message || "작업물 제출에 실패했습니다.", "error");
+      }
+    } catch (err) {
+      addToast("백엔드 통신 중 오류가 발생했습니다.", "error");
+    }
+  };
+
+  const handleApprove = async () => {
+    if (!guardAction() || !settlement) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/settlements/${settlement.id}/approve`, { method: 'PATCH', headers: authHeaders() });
+      const data = await res.json();
+      if (res.ok) {
+        setSettlement(data);
+        addToast(`정산이 승인되어 ₩${data.amount} 대금이 크리에이터에게 지급되었습니다.`, "success");
+      } else {
+        addToast(data.message || "정산 승인에 실패했습니다.", "error");
+      }
+    } catch (err) {
+      addToast("백엔드 통신 중 오류가 발생했습니다.", "error");
+    }
+  };
 
   // Contract details come from the matched campaign when available; otherwise
   // sensible placeholders so the page still renders if opened directly.
@@ -114,6 +213,69 @@ export default function ContractsView({
                   >
                     Toss Payments 보증금 결제
                   </button>
+                )}
+              </div>
+            </div>
+
+            {/* Escrow Settlement Lifecycle Tracker */}
+            <div className="portfolio-stat" style={{ textAlign: 'left' }}>
+              <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                <Banknote size={18} color="var(--secondary)" />
+                에스크로 정산 현황
+              </h4>
+
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+                {SETTLEMENT_STAGES.map((stage, i) => {
+                  const done = i <= stageIndex;
+                  const icons = [Lock, ShieldCheck, Upload, CheckCircle2];
+                  const Icon = icons[i];
+                  return (
+                    <React.Fragment key={stage}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', flex: '0 0 auto' }}>
+                        <div style={{
+                          width: '40px', height: '40px', borderRadius: '50%',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: done ? 'var(--secondary)' : 'rgba(255,255,255,0.06)',
+                          color: done ? '#04130d' : 'var(--text-muted)',
+                          border: i === stageIndex ? '2px solid var(--secondary)' : '2px solid transparent',
+                          transition: 'all 0.3s'
+                        }}>
+                          <Icon size={18} />
+                        </div>
+                        <span style={{ fontSize: '11px', color: done ? 'var(--secondary)' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>{stage}</span>
+                      </div>
+                      {i < SETTLEMENT_STAGES.length - 1 && (
+                        <div style={{ flex: 1, height: '2px', margin: '0 4px', marginBottom: '20px', background: i < stageIndex ? 'var(--secondary)' : 'rgba(255,255,255,0.08)' }} />
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+
+              {/* Role-based lifecycle action */}
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                {currentStatus === '정산 완료' ? (
+                  <span style={{ color: 'var(--secondary)', fontSize: '13px', fontWeight: 'bold' }}>
+                    ✓ 정산이 완료되어 크리에이터에게 대금이 지급되었습니다.
+                  </span>
+                ) : userRole === 'advertiser' && (currentStatus === '예치 대기') ? (
+                  <button className="btn btn-success" style={{ fontSize: '13px' }} onClick={handleDeposit}>
+                    <Lock size={14} style={{ marginRight: '6px' }} /> 에스크로 보증금 예치하기
+                  </button>
+                ) : userRole === 'creator' && currentStatus === '예치 완료' ? (
+                  <button className="btn btn-primary" style={{ fontSize: '13px' }} onClick={handleSubmitWork}>
+                    <Upload size={14} style={{ marginRight: '6px' }} /> 작업물 제출 완료
+                  </button>
+                ) : userRole === 'advertiser' && currentStatus === '작업 완료' ? (
+                  <button className="btn btn-success" style={{ fontSize: '13px' }} onClick={handleApprove}>
+                    <CheckCircle2 size={14} style={{ marginRight: '6px' }} /> 정산 승인 및 대금 지급
+                  </button>
+                ) : (
+                  <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+                    {currentStatus === '예치 대기' && '광고주의 보증금 예치를 기다리고 있습니다.'}
+                    {currentStatus === '예치 완료' && '크리에이터의 작업물 제출을 기다리고 있습니다.'}
+                    {currentStatus === '작업 완료' && '광고주의 정산 승인을 기다리고 있습니다.'}
+                  </span>
                 )}
               </div>
             </div>

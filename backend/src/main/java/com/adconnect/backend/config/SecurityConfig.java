@@ -35,7 +35,7 @@ public class SecurityConfig {
             .addFilterBefore(corsFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**", "/h2-console/**", "/api/campaigns/**", "/api/applications/**", "/api/chat/**", "/api/payments/**", "/ws-adconnect/**").permitAll() // 기본 매칭 조회를 위해 임시 전면 허용 및 웹소켓 허용
+                .requestMatchers("/api/auth/**", "/h2-console/**", "/api/campaigns/**", "/api/applications/**", "/api/settlements/**", "/api/chat/**", "/api/payments/**", "/ws-adconnect/**").permitAll() // 기본 매칭 조회를 위해 임시 전면 허용 및 웹소켓 허용
                 .anyRequest().authenticated()
             );
 
